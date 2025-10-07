@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard - UMP</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <div class="header-container">
+    <h1>Welcome to UMP Dashboard</h1>
+    <a href="login.html" id="login-btn">Logout</a>
+  </div>
+</header>
+
+<section id="select-platform">
+  <h2>Select Platforms</h2>
+  <p>Manage your chats across platforms</p>
+  <div class="platform-options">
+
+    <label class="platform-card">
+      <input type="checkbox" name="platforms" value="whatsapp" />
+      <img src="https://img.icons8.com/color/96/000000/whatsapp.png" />
+      <span>WhatsApp</span>
+      <div class="checkmark"></div>
+    </label>
+
+    <label class="platform-card">
+      <input type="checkbox" name="platforms" value="telegram" />
+      <img src="https://img.icons8.com/color/96/000000/telegram-app.png" />
+      <span>Telegram</span>
+      <div class="checkmark"></div>
+    </label>
+
+    <label class="platform-card">
+      <input type="checkbox" name="platforms" value="instagram" />
+      <img src="https://img.icons8.com/color/96/000000/instagram-new.png" />
+      <span>Instagram</span>
+      <div class="checkmark"></div>
+    </label>
+
+    <label class="platform-card">
+      <input type="checkbox" name="platforms" value="facebook" />
+      <img src="https://img.icons8.com/color/96/000000/facebook-new.png" />
+      <span>Facebook</span>
+      <div class="checkmark"></div>
+    </label>
+
+  </div>
+
+  <button class="primary-btn" id="proceedBtn">Proceed</button>
+</section>
+
+<script>
+document.getElementById('proceedBtn').addEventListener('click', () => {
+  const selected = [];
+  document.querySelectorAll('input[name="platforms"]:checked').forEach(cb => {
+    selected.push(cb.value);
+  });
+
+  if(selected.length === 0){
+    alert('Please select at least one platform!');
+    return;
+  }
+
+  // Save selected platforms to localStorage
+  localStorage.setItem('selectedPlatforms', JSON.stringify(selected));
+
+  // Redirect to messages/unified inbox page
+  window.location.href = 'messages.html';
+});
+</script>
+
+</body>
+</html>

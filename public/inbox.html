@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Inbox - UMP</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header>
+  <h1>Unified Inbox</h1>
+</header>
+<section>
+  <div id="inbox-container"></div>
+</section>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const inboxData = JSON.parse(localStorage.getItem("inbox_data") || "{}");
+    const container = document.getElementById("inbox-container");
+
+    Object.keys(inboxData).forEach(platform => {
+        const platformDiv = document.createElement("div");
+        platformDiv.innerHTML = `<h2>${platform.toUpperCase()}</h2>`;
+        inboxData[platform].forEach(msg => {
+            const msgDiv = document.createElement("div");
+            msgDiv.textContent = msg; // Only show placeholder
+            msgDiv.className = "message";
+            platformDiv.appendChild(msgDiv);
+        });
+        container.appendChild(platformDiv);
+    });
+});
+</script>
+</body>
+</html>

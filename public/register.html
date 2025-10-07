@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register - Unified Messaging Platform</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header Section -->
+  <header>
+    <div class="header-container">
+      <a href="index.html" class="back-link">← Back to Home</a>
+    </div>
+  </header>
+
+  <!-- Register Form Section -->
+  <section id="auth-form">
+    <div class="auth-container">
+      <form action="/register" method="POST" id="register-form">
+        <h2>Create Account</h2>
+        <div class="input-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" autocomplete="off" required placeholder="Enter your name">
+        </div>
+
+        <div class="input-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" autocomplete="off" required placeholder="Enter your email">
+        </div>
+
+        <div class="input-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" autocomplete="new-password" required placeholder="Enter your password">
+        </div>
+
+        <div class="input-group">
+          <label for="confirm-password">Confirm Password</label>
+          <input type="password" id="confirm-password" name="confirm-password" autocomplete="new-password" required placeholder="Enter your confirm password">
+        </div>
+
+        <button type="submit" class="primary-btn">Register</button>
+      </form>
+
+      <p class="switch-text">Already have an account? <a href="login.html">Login here</a></p>
+    </div>
+  </section>
+
+  <script src="script.js"></script>
+</body>
+</html>

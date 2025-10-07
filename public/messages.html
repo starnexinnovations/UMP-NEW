@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unified Inbox - UMP</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body {
+  font-family:'Segoe UI',Tahoma,sans-serif;
+  background:#e9efff;
+  margin:0;
+  padding:0;
+}
+
+/* Header with logout */
+header{
+  background:#1e90ff;
+  color:#fff;
+  padding:15px 20px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  box-shadow:0 4px 12px rgba(0,0,0,0.1);
+}
+
+header h1{
+  font-size:1.5rem;
+}
+
+#logout-btn{
+  background:#fff;
+  color:#1e90ff;
+  padding:8px 16px;
+  border-radius:6px;
+  text-decoration:none;
+  font-weight:600;
+  transition:0.3s;
+}
+
+#logout-btn:hover{
+  background:#f0f4ff;
+  color:#187bcd;
+}
+
+#inbox-container {
+  max-width:800px;
+  margin:30px auto;
+  padding:0 20px;
+}
+
+#inbox-container h2 {
+  text-align:center;
+  color:#1e90ff;
+  font-size:2rem;
+  margin-bottom:25px;
+}
+
+.message-row {
+  display:flex;
+  justify-content:flex-start;
+  align-items:flex-start;
+  margin-bottom:20px;
+  opacity:0;
+  transform:translateY(20px);
+  animation: fadeIn 0.5s forwards;
+}
+
+@keyframes fadeIn {
+  to { opacity:1; transform:translateY(0);}
+}
+
+/* Profile DP left */
+.message-left {
+  width:80px;
+  text-align:center;
+  margin-right:15px;
+}
+
+.message-left img {
+  width:50px;
+  height:50px;
+  border-radius:50%;
+  object-fit:cover;
+  border:2px solid #1e90ff;
+}
+
+.message-right {
+  flex:1;
+  background:#f8fbff;
+  padding:10px 15px;
+  border-radius:12px;
+  box-shadow:0 4px 12px rgba(30,144,255,0.1);
+  transition:all 0.3s;
+  position:relative;
+}
+
+.message-right:hover {
+  transform:translateY(-2px);
+  box-shadow:0 8px 20px rgba(30,144,255,0.2);
+}
+
+/* Name on top */
+.message-right .sender-name {
+  font-weight:700;
+  color:#1e90ff;
+  margin-bottom:6px;
+}
+
+.message-right .original {
+  font-size:1rem;
+  margin-bottom:5px;
+}
+
+.message-right .time {
+  font-size:0.8rem;
+  color:#555;
+  margin-bottom:10px;
+}
+
+.reply-container {
+  display:flex;
+  gap:10px;
+  margin-top:10px;
+}
+
+.reply-container input {
+  flex:1;
+  padding:8px 10px;
+  border-radius:6px;
+  border:1px solid #ccc;
+  font-size:0.95rem;
+}
+
+.reply-container button {
+  padding:8px 14px;
+  border:none;
+  background:#1e90ff;
+  color:#fff;
+  border-radius:6px;
+  cursor:pointer;
+  font-weight:600;
+  transition:0.3s;
+}
+
+.reply-container button:hover {
+  background:#187bcd;
+}
+
+.reply-message {
+  background:#d0e4ff;
+  padding:8px 12px;
+  border-radius:12px;
+  margin-top:8px;
+  font-size:0.95rem;
+  opacity:0;
+  transform:translateY(10px);
+  animation: bubbleFade 0.3s forwards;
+}
+
+.reply-message .time {
+  font-size:0.75rem;
+  color:#555;
+  margin-top:4px;
+}
+
+@keyframes bubbleFade {
+  to { opacity:1; transform:translateY(0);}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>UMP Dashboard</h1>
+  <a href="login.html" id="logout-btn">Logout</a>
+</header>
+
+<div id="inbox-container">
+  <h2>Unified Inbox</h2>
+  <div id="messages-wrapper"></div>
+</div>
+
+<script>
+function getCurrentTime(){
+  const now=new Date();
+  let hours=now.getHours();
+  let minutes=now.getMinutes().toString().padStart(2,'0');
+  const ampm=hours>=12?'PM':'AM';
+  hours=hours%12 ||12;
+  return hours+':'+minutes+' '+ampm;
+}
+
+const selected = JSON.parse(localStorage.getItem('selectedPlatforms') || '[]');
+const wrapper = document.getElementById('messages-wrapper');
+
+const platformData = {
+  whatsapp: {
+    logo:'https://img.icons8.com/color/96/000000/whatsapp.png',
+    name:'Akka',
+    msg:'Dei thambi, nee inum clg mudichi varalaya?'
+  },
+  telegram: {
+    logo:'https://img.icons8.com/color/96/000000/telegram-app.png',
+    name:'Thambi',
+    msg:'Happy Birthday Anna..!'
+  }
+};
+
+selected.forEach((platform,index)=>{
+  if(platformData[platform]){
+    const row=document.createElement('div');
+    row.classList.add('message-row');
+    row.style.animationDelay=(index*0.2)+'s';
+
+    // Left DP
+    const left=document.createElement('div');
+    left.classList.add('message-left');
+    left.innerHTML=`<img src="${platformData[platform].logo}" alt="${platform}" />`;
+
+    // Right message
+    const right=document.createElement('div');
+    right.classList.add('message-right');
+    right.innerHTML=`<div class="sender-name">${platformData[platform].name}</div>
+                      <div class="original">${platformData[platform].msg}</div>
+                      <div class="time">${getCurrentTime()}</div>
+                      <div class="reply-container">
+                        <input type="text" placeholder="Type a reply..." />
+                        <button>Send</button>
+                      </div>`;
+
+    row.appendChild(left);
+    row.appendChild(right);
+    wrapper.appendChild(row);
+
+    const input=right.querySelector('input');
+    const btn=right.querySelector('button');
+    btn.addEventListener('click',()=>{
+      if(input.value.trim()!==''){
+        const replyDiv=document.createElement('div');
+        replyDiv.classList.add('reply-message');
+        replyDiv.innerHTML=`Reply: ${input.value} <div class="time">${getCurrentTime()}</div>`;
+        right.appendChild(replyDiv);
+        input.value='';
+        right.scrollIntoView({behavior:'smooth'});
+      }
+    });
+  }
+});
+
+document.getElementById('logout-btn').addEventListener('click',()=>{
+  window.location.href='login.html';
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Platforms</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="platform-container">
+        <h2>Select Required Platforms</h2>
+        <button onclick="selectPlatform('whatsapp')">WhatsApp</button>
+        <button onclick="selectPlatform('telegram')">Telegram</button>
+        <button onclick="selectPlatform('instagram')">Instagram</button>
+        <button onclick="startSynchronization()">Synchronize Messages</button>
+        <div id="selected-platforms"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

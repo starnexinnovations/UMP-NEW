@@ -1,0 +1,449 @@
+================================================================================
+                    UMP PROJECT - COMPLETE SETUP GUIDE
+           Unified Messaging Platform (User Management System)
+================================================================================
+
+================================================================================
+PROJECT OVERVIEW
+================================================================================
+
+This is a User Management Platform (UMP) that allows users to:
+- Register and login with email/password authentication
+- Connect multiple social media platforms (WhatsApp, Telegram, Facebook, Instagram)
+- Manage messages across platforms in one unified inbox
+- View activity logs and media files
+- Reset passwords
+
+Tech Stack:
+- Backend: Node.js + Express.js
+- Database: MongoDB (Currently configured for local MongoDB)
+- Frontend: HTML, CSS, JavaScript (Vanilla JS)
+- Authentication: bcrypt for password hashing
+
+================================================================================
+PREREQUISITE SOFTWARE INSTALLATIONS
+================================================================================
+
+1. NODE.JS & NPM
+   - Download and install Node.js (v14 or higher): https://nodejs.org/
+   - Verify installation:
+     > node --version
+     > npm --version
+
+2. MONGODB DATABASE
+   - Option A: Install MongoDB Locally (Recommended for Development)
+     * Download MongoDB Community Server: https://www.mongodb.com/try/download/community
+     * Install and start MongoDB service
+     * Default connection: mongodb://127.0.0.1:27017
+     * MongoDB will create the database automatically when you first connect
+
+   - Option B: Use MongoDB Atlas (Cloud - Free Tier Available)
+     * Sign up at: https://www.mongodb.com/cloud/atlas
+     * Create a free cluster
+     * Get connection string and replace in server.js line 19
+
+3. GIT (Optional, for version control)
+   - Download: https://git-scm.com/downloads
+
+================================================================================
+INSTALLATION STEPS
+================================================================================
+
+STEP 1: Download/Clone the Project
+-----------------------------------
+- Extract the project folder to your desired location
+- Open terminal/command prompt in the project root directory
+
+STEP 2: Install Node Dependencies
+----------------------------------
+Run the following command in the project root:
+
+> npm install
+
+This will install all required packages:
+- express: Web server framework
+- mongoose: MongoDB object modeling
+- bcryptjs: Password hashing
+- body-parser: Parse incoming request bodies
+- cors: Enable cross-origin requests
+- dotenv: Environment variable management
+- nodemailer: Email sending functionality
+- express-session: Session management
+- mongoose-sequence: Auto-increment for user IDs
+
+STEP 3: Configure Environment Variables
+----------------------------------------
+Your project already has a .env file with:
+
+VITE_SUPABASE_URL=https://0ec90b57d6e95fcbda19832f.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+Note: These Supabase credentials are currently not being used in the code.
+The project uses MongoDB instead.
+
+If you want to add email functionality, add these to .env:
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
+
+STEP 4: Start MongoDB Service
+------------------------------
+If using local MongoDB:
+
+Windows:
+> net start MongoDB
+
+Mac/Linux:
+> sudo service mongod start
+
+OR if installed via Homebrew (Mac):
+> brew services start mongodb-community
+
+Verify MongoDB is running by checking:
+> mongosh
+(This should connect to MongoDB shell)
+
+STEP 5: Start the Application
+------------------------------
+Run the server:
+
+> npm start
+
+OR for development with auto-restart:
+
+> npm run dev
+
+You should see:
+✅ MongoDB Connected
+🚀 Server running at: http://localhost:5000
+
+================================================================================
+ACCESSING THE APPLICATION
+================================================================================
+
+Open your web browser and navigate to:
+
+http://localhost:5000
+
+Available Pages:
+- Homepage: http://localhost:5000/index.html
+- Register: http://localhost:5000/register.html
+- Login: http://localhost:5000/login.html
+- Forgot Password: http://localhost:5000/forget-password.html
+- Dashboard: http://localhost:5000/dashboard.html (after login)
+- Inbox: http://localhost:5000/inbox.html
+- Messages: http://localhost:5000/messages.html
+
+================================================================================
+DATABASE INFORMATION
+================================================================================
+
+Database Name: ump_project
+Connection String: mongodb://127.0.0.1:27017/ump_project
+
+Collections (Tables):
+1. users
+   - user_id (auto-increment number)
+   - username
+   - email (unique)
+   - password (hashed)
+   - created_at
+   - last_login
+
+2. messages
+   - user_id (reference to users)
+   - platform_name (WhatsApp, Telegram, Facebook, Instagram)
+   - sender_name
+   - content
+   - message_type (text, image, video, audio)
+   - timestamp
+
+3. platforms
+   - user_id (reference to users)
+   - platform_name
+   - access_token
+   - is_active
+   - synced_at
+
+4. activitylogs
+   - user_id (reference to users)
+   - action (login, reply, download)
+   - platform
+   - details
+   - timestamp
+
+5. mediafiles
+   - message_id (reference to messages)
+   - file_url
+   - media_type (image, video, audio)
+   - downloaded
+   - shared
+
+To view/manage database:
+- Use MongoDB Compass (GUI): https://www.mongodb.com/products/compass
+- Or use mongosh (command line)
+
+================================================================================
+API ENDPOINTS
+================================================================================
+
+All API endpoints run on: http://localhost:5000
+
+1. POST /register
+   Body: {
+     "username": "string",
+     "email": "string",
+     "password": "string"
+   }
+   Response: "Registration Successful" or error message
+
+2. POST /login
+   Body: {
+     "email": "string",
+     "password": "string"
+   }
+   Response: "Login Successful" or error message
+
+3. POST /reset-password
+   Body: {
+     "email": "string",
+     "newPassword": "string",
+     "confirmPassword": "string"
+   }
+   Response: "Password changed successfully" or error message
+
+================================================================================
+PROJECT STRUCTURE
+================================================================================
+
+ump_project/
+├── server.js                    # Main Express server
+├── package.json                 # Project dependencies
+├── .env                         # Environment variables
+├── models/                      # Database schemas
+│   ├── User.js
+│   ├── Message.js
+│   ├── Platform.js
+│   ├── ActivityLog.js
+│   └── MediaFile.js
+├── public/                      # Frontend files
+│   ├── index.html              # Homepage
+│   ├── register.html           # Registration page
+│   ├── login.html              # Login page
+│   ├── forget-password.html    # Password reset
+│   ├── dashboard.html          # User dashboard
+│   ├── inbox.html              # Messages inbox
+│   ├── messages.html           # Message view
+│   ├── select-platform.html    # Platform selection
+│   ├── style.css               # Styling
+│   ├── script.js               # Frontend logic
+│   ├── dashboard.js            # Dashboard logic
+│   └── forget.js               # Password reset logic
+├── New folder/                  # Controllers (not currently used)
+│   ├── authController.js
+│   └── messageController.js
+└── utils/                       # Utility functions
+    └── emailSender.js          # Email sending functionality
+
+================================================================================
+TESTING THE APPLICATION
+================================================================================
+
+1. Start MongoDB (see STEP 4)
+2. Start the server: npm start
+3. Open browser: http://localhost:5000
+4. Test Registration:
+   - Go to register.html
+   - Fill in: username, email, password
+   - Click Register
+   - Should redirect to login page
+
+5. Test Login:
+   - Go to login.html
+   - Enter registered email and password
+   - Click Login
+   - Should redirect to dashboard
+
+6. Test Password Reset:
+   - Go to forget-password.html
+   - Enter email and new password
+   - Confirm new password
+   - Password should be updated
+
+================================================================================
+COMMON ISSUES & TROUBLESHOOTING
+================================================================================
+
+ISSUE 1: "MongoDB Connection Failed"
+Solution:
+- Ensure MongoDB service is running
+- Check if port 27017 is available
+- Verify MongoDB is installed correctly
+- Try: mongosh to test connection
+
+ISSUE 2: "Port 5000 already in use"
+Solution:
+- Change PORT in server.js (line 11) to another port like 3000 or 8000
+- Or stop the process using port 5000
+
+ISSUE 3: "npm install fails"
+Solution:
+- Delete node_modules folder and package-lock.json
+- Run: npm cache clean --force
+- Run: npm install again
+
+ISSUE 4: "Cannot find module 'xyz'"
+Solution:
+- Ensure all dependencies are installed: npm install
+- Check if the module is listed in package.json
+
+ISSUE 5: "Registration/Login not working"
+Solution:
+- Open browser developer tools (F12)
+- Check Console for errors
+- Verify server is running and MongoDB is connected
+- Check Network tab for API responses
+
+ISSUE 6: "Database not creating automatically"
+Solution:
+- MongoDB creates databases on first write operation
+- Try registering a user, the database will be created automatically
+- Use MongoDB Compass to verify: mongodb://127.0.0.1:27017
+
+================================================================================
+DEVELOPMENT WORKFLOW
+================================================================================
+
+1. Make sure MongoDB is running
+2. Start server: npm start
+3. Make code changes
+4. Server needs manual restart (unless using npm run dev with nodemon)
+5. Refresh browser to see frontend changes
+6. Check terminal for backend errors
+7. Check browser console for frontend errors
+
+================================================================================
+PRODUCTION DEPLOYMENT CHECKLIST
+================================================================================
+
+Before deploying to production:
+
+1. Database:
+   - Switch to MongoDB Atlas (cloud database)
+   - Update connection string in server.js
+   - Enable MongoDB authentication
+   - Set up database backups
+
+2. Security:
+   - Add JWT tokens for session management
+   - Implement rate limiting
+   - Add input validation
+   - Enable HTTPS
+   - Set secure CORS policies
+   - Never commit .env file to git
+
+3. Environment:
+   - Set NODE_ENV=production
+   - Use environment variables for all sensitive data
+   - Change PORT if needed
+
+4. Code:
+   - Add proper error handling
+   - Implement logging
+   - Add request validation
+   - Optimize database queries
+
+5. Hosting:
+   - Deploy to services like: Heroku, AWS, DigitalOcean, Render
+   - Set up domain and SSL certificate
+   - Configure environment variables on hosting platform
+
+================================================================================
+FUTURE ENHANCEMENTS NEEDED
+================================================================================
+
+Current Limitations:
+1. No actual social media platform integration (WhatsApp, Telegram, etc.)
+2. No session management (users not persisted after login)
+3. No JWT authentication tokens
+4. Password reset doesn't send email verification
+5. No file upload functionality for media
+6. Dashboard and inbox pages have no backend integration
+
+To Make It Fully Functional:
+1. Implement JWT authentication
+2. Add session/token storage (localStorage or cookies)
+3. Connect to social media APIs (WhatsApp Business API, Telegram Bot API, etc.)
+4. Implement file upload for media
+5. Add proper error handling and validation
+6. Create protected routes that check authentication
+7. Build out dashboard with real data from database
+8. Implement email verification for registration
+9. Add 2FA (two-factor authentication)
+10. Create admin panel for user management
+
+================================================================================
+USEFUL COMMANDS
+================================================================================
+
+# Install dependencies
+npm install
+
+# Start server (production mode)
+npm start
+
+# Start server (development mode with auto-restart)
+npm run dev
+
+# Check Node version
+node --version
+
+# Check npm version
+npm --version
+
+# Connect to MongoDB shell
+mongosh
+
+# Stop MongoDB service (Windows)
+net stop MongoDB
+
+# Stop MongoDB service (Mac/Linux)
+sudo service mongod stop
+
+# View all running processes on port 5000 (Windows)
+netstat -ano | findstr :5000
+
+# View all running processes on port 5000 (Mac/Linux)
+lsof -i :5000
+
+# Kill process by PID
+kill -9 <PID>
+
+================================================================================
+CONTACT & SUPPORT
+================================================================================
+
+If you encounter issues:
+1. Check this guide's troubleshooting section
+2. Review error messages in terminal and browser console
+3. Verify all prerequisite software is installed
+4. Ensure MongoDB is running before starting the server
+5. Check that all npm packages are installed correctly
+
+Common Error Messages & Meanings:
+- "EADDRINUSE": Port already in use
+- "ECONNREFUSED": MongoDB not running or wrong connection string
+- "MODULE_NOT_FOUND": Missing npm package, run npm install
+- "MongooseError": Database connection or query issue
+
+================================================================================
+                              END OF GUIDE
+================================================================================
+
+Version: 1.0
+Last Updated: 2025-10-07
+Project: UMP (Unified Messaging Platform)
+
+This guide covers everything needed to set up and run the project locally.
+For questions about specific features or code, refer to the source files.
+
+================================================================================

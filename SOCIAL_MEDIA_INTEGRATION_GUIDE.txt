@@ -1,0 +1,585 @@
+================================================================================
+            SOCIAL MEDIA INTEGRATION & EMAIL VERIFICATION GUIDE
+                    Complete Setup for UMP Platform
+================================================================================
+
+================================================================================
+OVERVIEW
+================================================================================
+
+This guide covers the complete setup for:
+1. Email Verification System (Nodemailer with Gmail)
+2. WhatsApp Business API Integration
+3. Telegram Bot API Integration
+4. Facebook Messenger Integration
+5. Instagram Direct Messages Integration
+
+All integrations are now implemented in the codebase. You just need to:
+- Configure API credentials
+- Set up webhooks
+- Test the integrations
+
+================================================================================
+PART 1: EMAIL VERIFICATION SETUP
+================================================================================
+
+STEP 1: Gmail Setup
+-------------------
+1. Go to your Gmail account
+2. Enable 2-Factor Authentication:
+   - Go to: https://myaccount.google.com/security
+   - Click "2-Step Verification" and follow the steps
+
+3. Generate App Password:
+   - Go to: https://myaccount.google.com/apppasswords
+   - Select "Mail" and "Other (Custom name)"
+   - Name it "UMP Project"
+   - Click "Generate"
+   - Copy the 16-character password (no spaces)
+
+4. Update .env file:
+   EMAIL_USER=your-email@gmail.com
+   EMAIL_PASS=your-16-character-app-password
+
+STEP 2: Test Email Verification
+--------------------------------
+1. Start your server: npm start
+2. Register a new user
+3. Check your email inbox for verification link
+4. Click the link to verify
+5. Try logging in (should only work after verification)
+
+Features Implemented:
+- Registration sends verification email
+- Email link expires in 24 hours
+- Login blocked until email verified
+- OTP system for password reset (10-minute expiry)
+
+================================================================================
+PART 2: WHATSAPP BUSINESS API SETUP
+================================================================================
+
+STEP 1: Create Meta Business Account
+-------------------------------------
+1. Go to: https://business.facebook.com/
+2. Click "Create Account"
+3. Fill in your business details
+4. Verify your business email
+
+STEP 2: Set Up WhatsApp Business API
+-------------------------------------
+1. Go to: https://developers.facebook.com/
+2. Click "My Apps" > "Create App"
+3. Select "Business" as app type
+4. Name your app (e.g., "UMP WhatsApp")
+5. Add WhatsApp product to your app
+
+STEP 3: Get Phone Number and Token
+-----------------------------------
+1. In your app dashboard, go to WhatsApp > Getting Started
+2. Add a phone number (or use the test number provided)
+3. Copy the following:
+   - Phone Number ID
+   - Access Token (24-hour temporary token)
+
+4. For permanent token:
+   - Go to System Users in Business Settings
+   - Create a system user
+   - Generate a permanent token with whatsapp_business_messaging permission
+
+5. Update .env file:
+   WHATSAPP_PHONE_NUMBER_ID=your-phone-number-id
+   WHATSAPP_ACCESS_TOKEN=your-permanent-access-token
+   WHATSAPP_VERIFY_TOKEN=any-random-string-you-create
+
+STEP 4: Configure Webhook
+--------------------------
+1. You need a public URL for webhooks. Options:
+
+   Option A: Use ngrok (for testing):
+   - Download ngrok: https://ngrok.com/download
+   - Run: ngrok http 5000
+   - Copy the HTTPS URL (e.g., https://abc123.ngrok.io)
+
+   Option B: Deploy to cloud (for production):
+   - Deploy to Heroku, AWS, DigitalOcean, etc.
+   - Use your domain URL
+
+2. In WhatsApp Dashboard > Configuration:
+   - Callback URL: https://your-domain.com/webhook/whatsapp
+   - Verify Token: (same as WHATSAPP_VERIFY_TOKEN in .env)
+   - Click "Verify and Save"
+
+3. Subscribe to webhook fields:
+   - messages
+   - message_status
+
+STEP 5: Test WhatsApp Integration
+----------------------------------
+1. Send a test message to your WhatsApp number
+2. Check your MongoDB messages collection
+3. Message should be saved automatically
+
+Send Message via API:
+```javascript
+const whatsapp = require('./utils/whatsappIntegration');
+await whatsapp.sendWhatsAppMessage('1234567890', 'Hello from UMP!');
+```
+
+================================================================================
+PART 3: TELEGRAM BOT SETUP
+================================================================================
+
+STEP 1: Create Telegram Bot
+----------------------------
+1. Open Telegram app
+2. Search for @BotFather
+3. Send command: /newbot
+4. Choose a name for your bot (e.g., "UMP Bot")
+5. Choose a username (must end with 'bot', e.g., "ump_platform_bot")
+6. Copy the Bot Token
+
+7. Update .env file:
+   TELEGRAM_BOT_TOKEN=your-bot-token
+
+STEP 2: Set Up Webhook
+-----------------------
+Method 1: Using the API (recommended):
+```javascript
+const telegram = require('./utils/telegramIntegration');
+await telegram.setTelegramWebhook('https://your-domain.com/webhook/telegram');
+```
+
+Method 2: Using browser:
+https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook?url=https://your-domain.com/webhook/telegram
+
+STEP 3: Configure Bot Commands (Optional)
+------------------------------------------
+Send to @BotFather:
+/setcommands
+
+Then send:
+start - Start the bot
+help - Get help
+status - Check status
+
+STEP 4: Test Telegram Integration
+----------------------------------
+1. Search for your bot in Telegram
+2. Send /start
+3. Send a test message
+4. Check MongoDB messages collection
+
+Send Message via API:
+```javascript
+const telegram = require('./utils/telegramIntegration');
+await telegram.sendTelegramMessage('chat-id', 'Hello from UMP!');
+```
+
+================================================================================
+PART 4: FACEBOOK MESSENGER SETUP
+================================================================================
+
+STEP 1: Create Facebook Page
+-----------------------------
+1. Go to: https://www.facebook.com/pages/create
+2. Create a business page
+3. Complete your page details
+
+STEP 2: Create Facebook App
+----------------------------
+1. Go to: https://developers.facebook.com/
+2. Create a new app (Business type)
+3. Add "Messenger" product
+
+STEP 3: Connect Your Page
+--------------------------
+1. In Messenger settings, under "Access Tokens"
+2. Select your page
+3. Generate a Page Access Token
+4. Copy the token
+
+5. Update .env file:
+   FACEBOOK_PAGE_ACCESS_TOKEN=your-page-access-token
+   FACEBOOK_VERIFY_TOKEN=any-random-string-you-create
+
+STEP 4: Set Up Webhook
+-----------------------
+1. In Messenger > Settings > Webhooks
+2. Click "Add Callback URL"
+   - Callback URL: https://your-domain.com/webhook/facebook
+   - Verify Token: (same as FACEBOOK_VERIFY_TOKEN in .env)
+3. Click "Verify and Save"
+4. Subscribe to webhook fields:
+   - messages
+   - messaging_postbacks
+   - message_deliveries
+   - message_reads
+
+STEP 5: Subscribe Page to App
+------------------------------
+1. In Messenger settings
+2. Select your page under "Webhooks"
+3. Click "Subscribe"
+
+STEP 6: App Review (For Production)
+------------------------------------
+For full public access, submit for App Review:
+1. Go to App Review
+2. Request "pages_messaging" permission
+3. Provide use case and demo video
+
+STEP 7: Test Facebook Integration
+----------------------------------
+1. Send a message to your Facebook page
+2. Check MongoDB messages collection
+
+Send Message via API:
+```javascript
+const facebook = require('./utils/facebookIntegration');
+await facebook.sendFacebookMessage('recipient-id', 'Hello from UMP!');
+```
+
+================================================================================
+PART 5: INSTAGRAM DIRECT MESSAGES SETUP
+================================================================================
+
+STEP 1: Convert to Instagram Business Account
+----------------------------------------------
+1. Open Instagram app
+2. Go to Settings > Account
+3. Switch to Professional Account
+4. Choose Business
+
+STEP 2: Connect to Facebook Page
+---------------------------------
+1. In Instagram settings
+2. Link to your Facebook business page
+3. Complete the connection
+
+STEP 3: Get Instagram Access Token
+-----------------------------------
+1. Use the same Facebook app from Messenger setup
+2. Add "Instagram" product to your app
+3. Connect your Instagram account
+4. Generate access token with instagram_basic and instagram_manage_messages
+
+5. Update .env file:
+   INSTAGRAM_ACCESS_TOKEN=your-instagram-access-token
+   INSTAGRAM_VERIFY_TOKEN=any-random-string-you-create
+
+STEP 4: Set Up Webhook
+-----------------------
+1. In Instagram settings in your Facebook app
+2. Click "Add Callback URL"
+   - Callback URL: https://your-domain.com/webhook/instagram
+   - Verify Token: (same as INSTAGRAM_VERIFY_TOKEN in .env)
+3. Subscribe to:
+   - messages
+   - messaging_postbacks
+
+STEP 5: Test Instagram Integration
+-----------------------------------
+1. Send a DM to your Instagram business account
+2. Check MongoDB messages collection
+
+Send Message via API:
+```javascript
+const instagram = require('./utils/instagramIntegration');
+await instagram.sendInstagramMessage('recipient-id', 'Hello from UMP!');
+```
+
+================================================================================
+COMPLETE .ENV FILE EXAMPLE
+================================================================================
+
+VITE_SUPABASE_URL=https://0ec90b57d6e95fcbda19832f.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-key
+
+# Email Configuration
+EMAIL_USER=yourname@gmail.com
+EMAIL_PASS=abcd efgh ijkl mnop
+
+# WhatsApp Configuration
+WHATSAPP_PHONE_NUMBER_ID=123456789012345
+WHATSAPP_ACCESS_TOKEN=EAAabcdefghijklmnopqrstuvwxyz
+WHATSAPP_VERIFY_TOKEN=MySecureVerifyToken123
+
+# Telegram Configuration
+TELEGRAM_BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ
+
+# Facebook Configuration
+FACEBOOK_PAGE_ACCESS_TOKEN=EAAabcdefghijklmnopqrstuvwxyz
+FACEBOOK_VERIFY_TOKEN=MyFacebookVerifyToken456
+
+# Instagram Configuration
+INSTAGRAM_ACCESS_TOKEN=IGQabcdefghijklmnopqrstuvwxyz
+INSTAGRAM_VERIFY_TOKEN=MyInstagramVerifyToken789
+
+================================================================================
+WEBHOOK URLS SUMMARY
+================================================================================
+
+All webhook URLs (replace with your domain):
+
+WhatsApp:
+GET  https://your-domain.com/webhook/whatsapp  (verification)
+POST https://your-domain.com/webhook/whatsapp  (receive messages)
+
+Telegram:
+POST https://your-domain.com/webhook/telegram
+
+Facebook:
+GET  https://your-domain.com/webhook/facebook  (verification)
+POST https://your-domain.com/webhook/facebook  (receive messages)
+
+Instagram:
+GET  https://your-domain.com/webhook/instagram (verification)
+POST https://your-domain.com/webhook/instagram (receive messages)
+
+================================================================================
+API ENDPOINTS ADDED TO SERVER
+================================================================================
+
+Email & Authentication:
+POST /register                - Register with email verification
+GET  /verify-email            - Verify email from link
+POST /login                   - Login (requires verified email)
+POST /send-otp                - Send OTP for password reset
+POST /verify-otp-reset        - Verify OTP and reset password
+
+Messages & Platforms:
+GET  /api/messages/:userId    - Get all user messages
+POST /api/connect-platform    - Connect a new platform
+
+Webhooks:
+GET/POST /webhook/whatsapp    - WhatsApp webhook
+POST     /webhook/telegram    - Telegram webhook
+GET/POST /webhook/facebook    - Facebook webhook
+GET/POST /webhook/instagram   - Instagram webhook
+
+================================================================================
+TESTING CHECKLIST
+================================================================================
+
+Email Verification:
+[ ] Register new user
+[ ] Receive verification email
+[ ] Click verification link
+[ ] Login successfully
+
+WhatsApp:
+[ ] Webhook verified
+[ ] Receive incoming messages
+[ ] Send outgoing messages
+[ ] Media messages working
+
+Telegram:
+[ ] Webhook set up
+[ ] Bot responds to /start
+[ ] Receive messages
+[ ] Send messages
+
+Facebook:
+[ ] Webhook verified
+[ ] Page receives messages
+[ ] Send replies
+[ ] Message status updates
+
+Instagram:
+[ ] Business account connected
+[ ] Webhook verified
+[ ] Receive DMs
+[ ] Send DMs
+
+================================================================================
+COMMON ISSUES & SOLUTIONS
+================================================================================
+
+ISSUE: Email not sending
+Solution:
+- Verify Gmail app password is correct (16 characters, no spaces)
+- Check 2FA is enabled on Gmail
+- Check email in spam folder
+- Verify EMAIL_USER and EMAIL_PASS in .env
+
+ISSUE: WhatsApp webhook verification fails
+Solution:
+- Ensure server is running and publicly accessible
+- WHATSAPP_VERIFY_TOKEN must match exactly
+- Use HTTPS URL (ngrok provides HTTPS)
+- Check server logs for errors
+
+ISSUE: Telegram bot not responding
+Solution:
+- Verify bot token is correct
+- Set webhook URL correctly
+- Check if bot is active (message @BotFather)
+- Ensure only ONE webhook is set (either polling OR webhook, not both)
+
+ISSUE: Facebook/Instagram webhook fails
+Solution:
+- Page must be connected to the app
+- App must be in Live mode (not Development)
+- Verify token must match exactly
+- Subscribe page to webhook events
+
+ISSUE: Can't receive messages
+Solution:
+- Check MongoDB is running
+- Verify webhook URLs are correct
+- Check server logs for parsing errors
+- Ensure all environment variables are set
+
+================================================================================
+NGROK SETUP FOR LOCAL TESTING
+================================================================================
+
+1. Download ngrok:
+   https://ngrok.com/download
+
+2. Extract and run:
+   Windows: ngrok.exe http 5000
+   Mac/Linux: ./ngrok http 5000
+
+3. Copy the HTTPS URL (e.g., https://abc123.ngrok.io)
+
+4. Use this URL for all webhooks:
+   - https://abc123.ngrok.io/webhook/whatsapp
+   - https://abc123.ngrok.io/webhook/telegram
+   - etc.
+
+5. Important Notes:
+   - Free ngrok URLs change every time you restart
+   - Update webhooks when URL changes
+   - For production, use a permanent domain
+
+================================================================================
+PRODUCTION DEPLOYMENT CHECKLIST
+================================================================================
+
+Before going live:
+
+[ ] Use permanent domain (not ngrok)
+[ ] Enable HTTPS/SSL certificate
+[ ] Use production database (MongoDB Atlas)
+[ ] Set all environment variables on hosting platform
+[ ] Generate permanent access tokens (not temporary)
+[ ] Submit Facebook/Instagram apps for review
+[ ] Test all integrations thoroughly
+[ ] Set up error logging and monitoring
+[ ] Implement rate limiting
+[ ] Add input validation and sanitization
+[ ] Set up automated backups
+[ ] Configure CORS properly
+[ ] Add authentication middleware
+[ ] Implement message queue for high volume
+
+================================================================================
+ADDITIONAL FEATURES TO IMPLEMENT
+================================================================================
+
+Suggested Enhancements:
+
+1. Message Templates
+   - Save and reuse common responses
+   - Template variables for personalization
+
+2. Auto-Replies
+   - Keyword-based automatic responses
+   - Business hours auto-responder
+
+3. Message Scheduling
+   - Schedule messages for later
+   - Bulk messaging with rate limiting
+
+4. Analytics Dashboard
+   - Message volume by platform
+   - Response time tracking
+   - Popular keywords
+
+5. Team Features
+   - Assign conversations to team members
+   - Internal notes on conversations
+   - Permission levels
+
+6. File Management
+   - Upload and send media files
+   - Media library
+   - Image compression
+
+7. Customer Profiles
+   - Save customer information
+   - Conversation history
+   - Tags and labels
+
+8. AI Integration
+   - ChatGPT for smart replies
+   - Sentiment analysis
+   - Language translation
+
+================================================================================
+USEFUL LINKS & DOCUMENTATION
+================================================================================
+
+WhatsApp Business API:
+https://developers.facebook.com/docs/whatsapp/
+
+Telegram Bot API:
+https://core.telegram.org/bots/api
+
+Facebook Messenger Platform:
+https://developers.facebook.com/docs/messenger-platform/
+
+Instagram Messaging API:
+https://developers.facebook.com/docs/messenger-platform/instagram
+
+Nodemailer Documentation:
+https://nodemailer.com/about/
+
+Gmail App Passwords:
+https://support.google.com/accounts/answer/185833
+
+MongoDB Documentation:
+https://www.mongodb.com/docs/
+
+Express.js Documentation:
+https://expressjs.com/
+
+ngrok Documentation:
+https://ngrok.com/docs
+
+================================================================================
+SUPPORT & TROUBLESHOOTING
+================================================================================
+
+If you encounter issues:
+
+1. Check server logs for detailed error messages
+2. Verify all environment variables are set correctly
+3. Ensure MongoDB is running
+4. Test webhook URLs with tools like Postman
+5. Check platform-specific dashboards for webhook delivery status
+6. Review API quota and rate limits
+7. Ensure tokens haven't expired
+
+For platform-specific issues:
+- WhatsApp: Check Meta Business Suite
+- Telegram: Message @BotFather for bot status
+- Facebook/Instagram: Check App Dashboard for errors
+
+================================================================================
+                              END OF GUIDE
+================================================================================
+
+Version: 2.0
+Last Updated: 2025-10-07
+Project: UMP (Unified Messaging Platform)
+
+This guide provides complete setup instructions for all social media
+integrations and email verification. Follow each section carefully and
+test thoroughly before deploying to production.
+
+For questions about specific APIs, refer to official documentation links above.
+
+================================================================================

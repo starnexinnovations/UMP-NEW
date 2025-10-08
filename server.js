@@ -364,6 +364,102 @@ app.post("/api/connect-platform", async (req, res) => {
   }
 });
 
+// Send WhatsApp Message
+app.post("/api/send/whatsapp", async (req, res) => {
+  try {
+    const { to, message, userId } = req.body;
+
+    const result = await sendWhatsAppMessage(to, message);
+
+    const newMessage = new Message({
+      user_id: userId,
+      platform_name: "WhatsApp",
+      sender_name: "You",
+      content: message,
+      message_type: "text",
+      timestamp: new Date()
+    });
+    await newMessage.save();
+
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error("WhatsApp send error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Send Telegram Message
+app.post("/api/send/telegram", async (req, res) => {
+  try {
+    const { chatId, message, userId } = req.body;
+
+    const result = await sendTelegramMessage(chatId, message);
+
+    const newMessage = new Message({
+      user_id: userId,
+      platform_name: "Telegram",
+      sender_name: "You",
+      content: message,
+      message_type: "text",
+      timestamp: new Date()
+    });
+    await newMessage.save();
+
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error("Telegram send error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Send Facebook Message
+app.post("/api/send/facebook", async (req, res) => {
+  try {
+    const { recipientId, message, userId } = req.body;
+
+    const result = await sendFacebookMessage(recipientId, message);
+
+    const newMessage = new Message({
+      user_id: userId,
+      platform_name: "Facebook",
+      sender_name: "You",
+      content: message,
+      message_type: "text",
+      timestamp: new Date()
+    });
+    await newMessage.save();
+
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error("Facebook send error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Send Instagram Message
+app.post("/api/send/instagram", async (req, res) => {
+  try {
+    const { recipientId, message, userId } = req.body;
+
+    const result = await sendInstagramMessage(recipientId, message);
+
+    const newMessage = new Message({
+      user_id: userId,
+      platform_name: "Instagram",
+      sender_name: "You",
+      content: message,
+      message_type: "text",
+      timestamp: new Date()
+    });
+    await newMessage.save();
+
+    res.json({ success: true, data: result });
+  } catch (err) {
+    console.error("Instagram send error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ✅ Start the server
 app.listen(PORT, () => {
   console.log(`🚀 Server running at: http://localhost:${PORT}`);

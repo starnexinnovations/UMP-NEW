@@ -62,16 +62,18 @@ if(loginForm){
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({email,password})
       });
-      debugger;
 
       const data = await res.json();
-     
+
       showNotification(data.message, data.message==="Login Successful"?"success":"error");
       if(data.message==="Login Successful"){
+        localStorage.setItem('userId', data.userId);
+        localStorage.setItem('username', data.username);
         loginForm.reset();
         setTimeout(()=>window.location.href="dashboard.html",1500);
       }
     }catch(err){
+      console.error('Login error:', err);
       showNotification("Server error","error");
     }
   });

@@ -191,6 +191,27 @@ function getCurrentTime(){
   return hours+':'+minutes+' '+ampm;
 }
 
+function showNotification(msg, type="success"){
+  const notif = document.createElement("div");
+  notif.className = `notification ${type}`;
+  notif.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    background: ${type==="success" ? "#4CAF50" : "#f44336"};
+    color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 9999;
+    animation: slideIn 0.3s;
+  `;
+  notif.innerText = msg;
+  document.body.appendChild(notif);
+  setTimeout(() => notif.remove(), 3000);
+}
+
+const userId = localStorage.getItem('userId') || 'test-user-id';
 const selected = JSON.parse(localStorage.getItem('selectedPlatforms') || '[]');
 const wrapper = document.getElementById('messages-wrapper');
 
@@ -198,14 +219,66 @@ const platformData = {
   whatsapp: {
     logo:'https://img.icons8.com/color/96/000000/whatsapp.png',
     name:'Akka',
-    msg:'Dei thambi, nee inum clg mudichi varalaya?'
+    msg:'Dei thambi, nee inum clg mudichi varalaya?',
+    recipientId: '1234567890'
   },
   telegram: {
     logo:'https://img.icons8.com/color/96/000000/telegram-app.png',
     name:'Thambi',
-    msg:'Happy Birthday Anna..!'
+    msg:'Happy Birthday Anna..!',
+    chatId: '123456789'
+  },
+  facebook: {
+    logo:'https://img.icons8.com/color/96/000000/facebook.png',
+    name:'Friend',
+    msg:'Hey! How are you?',
+    recipientId: 'facebook-user-id'
+  },
+  instagram: {
+    logo:'https://img.icons8.com/color/96/000000/instagram-new.png',
+    name:'Follower',
+    msg:'Love your posts!',
+    recipientId: 'instagram-user-id'
   }
 };
+
+async function sendMessage(platform, message, recipientInfo){
+  const apiEndpoints = {
+    whatsapp: '/api/send/whatsapp',
+    telegram: '/api/send/telegram',
+    facebook: '/api/send/facebook',
+    instagram: '/api/send/instagram'
+  };
+
+  const payloads = {
+    whatsapp: { to: recipientInfo.recipientId, message, userId },
+    telegram: { chatId: recipientInfo.chatId, message, userId },
+    facebook: { recipientId: recipientInfo.recipientId, message, userId },
+    instagram: { recipientId: recipientInfo.recipientId, message, userId }
+  };
+
+  try {
+    const response = await fetch(`http://localhost:5000${apiEndpoints[platform]}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payloads[platform])
+    });
+
+    const data = await response.json();
+
+    if(data.success){
+      showNotification(`Message sent via ${platform}!`, 'success');
+      return true;
+    } else {
+      showNotification(`Failed to send: ${data.error}`, 'error');
+      return false;
+    }
+  } catch(err){
+    console.error('Send error:', err);
+    showNotification(`Error sending message: ${err.message}`, 'error');
+    return false;
+  }
+}
 
 selected.forEach((platform,index)=>{
   if(platformData[platform]){
@@ -213,15 +286,13 @@ selected.forEach((platform,index)=>{
     row.classList.add('message-row');
     row.style.animationDelay=(index*0.2)+'s';
 
-    // Left DP
     const left=document.createElement('div');
     left.classList.add('message-left');
     left.innerHTML=`<img src="${platformData[platform].logo}" alt="${platform}" />`;
 
-    // Right message
     const right=document.createElement('div');
     right.classList.add('message-right');
-    right.innerHTML=`<div class="sender-name">${platformData[platform].name}</div>
+    right.innerHTML=`<div class="sender-name">${platformData[platform].name} (${platform})</div>
                       <div class="original">${platformData[platform].msg}</div>
                       <div class="time">${getCurrentTime()}</div>
                       <div class="reply-container">
@@ -235,20 +306,42 @@ selected.forEach((platform,index)=>{
 
     const input=right.querySelector('input');
     const btn=right.querySelector('button');
-    btn.addEventListener('click',()=>{
-      if(input.value.trim()!==''){
-        const replyDiv=document.createElement('div');
-        replyDiv.classList.add('reply-message');
-        replyDiv.innerHTML=`Reply: ${input.value} <div class="time">${getCurrentTime()}</div>`;
-        right.appendChild(replyDiv);
-        input.value='';
-        right.scrollIntoView({behavior:'smooth'});
+    btn.addEventListener('click', async ()=>{
+      const msg = input.value.trim();
+      if(msg !== ''){
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
+
+        const success = await sendMessage(platform, msg, platformData[platform]);
+
+        if(success){
+          const replyDiv=document.createElement('div');
+          replyDiv.classList.add('reply-message');
+          replyDiv.innerHTML=`Reply: ${msg} <div class="time">${getCurrentTime()}</div>`;
+          right.appendChild(replyDiv);
+          input.value='';
+          right.scrollIntoView({behavior:'smooth'});
+        }
+
+        btn.disabled = false;
+        btn.textContent = 'Send';
+      }
+    });
+
+    input.addEventListener('keypress', (e)=>{
+      if(e.key === 'Enter'){
+        btn.click();
       }
     });
   }
 });
 
+if(selected.length === 0){
+  wrapper.innerHTML = '<p style="text-align:center; color:#888; padding:40px;">No platforms selected. Please go to <a href="select-platform.html">platform selection</a>.</p>';
+}
+
 document.getElementById('logout-btn').addEventListener('click',()=>{
+  localStorage.clear();
   window.location.href='login.html';
 });
 </script>

@@ -219,21 +219,29 @@ app.get("/webhook/whatsapp", async (req, res) => {
 // WhatsApp Webhook Handler
 app.post("/webhook/whatsapp", async (req, res) => {
   try {
+    console.log('WhatsApp webhook received:', JSON.stringify(req.body, null, 2));
+
     const messageData = parseWhatsAppWebhook(req.body);
     if (messageData) {
-      const newMessage = new Message({
-        user_id: req.body.userId || null,
-        platform_name: "WhatsApp",
-        sender_name: messageData.senderName,
-        content: messageData.text,
-        message_type: messageData.type,
-        timestamp: messageData.timestamp
-      });
-      await newMessage.save();
+      const firstUser = await User.findOne();
+      const userId = firstUser ? firstUser._id : null;
+
+      if (userId) {
+        const newMessage = new Message({
+          user_id: userId,
+          platform_name: "WhatsApp",
+          sender_name: messageData.senderName,
+          content: messageData.text,
+          message_type: messageData.type,
+          timestamp: messageData.timestamp
+        });
+        await newMessage.save();
+        console.log('WhatsApp message saved:', newMessage);
+      }
     }
     res.sendStatus(200);
   } catch (err) {
-    console.error(err);
+    console.error('WhatsApp webhook error:', err);
     res.sendStatus(500);
   }
 });
@@ -241,21 +249,41 @@ app.post("/webhook/whatsapp", async (req, res) => {
 // Telegram Webhook Handler
 app.post("/webhook/telegram", async (req, res) => {
   try {
+    console.log('Telegram webhook received:', JSON.stringify(req.body, null, 2));
+
     const messageData = parseTelegramWebhook(req.body);
     if (messageData) {
-      const newMessage = new Message({
-        user_id: req.body.userId || null,
+      // Try to find user by checking Platform collection for matching chat
+      let userId = null;
+      const platform = await Platform.findOne({
         platform_name: "Telegram",
-        sender_name: messageData.senderName,
-        content: messageData.text,
-        message_type: messageData.type,
-        timestamp: messageData.timestamp
+        access_token: { $regex: messageData.chatId, $options: 'i' }
       });
-      await newMessage.save();
+
+      if (platform) {
+        userId = platform.user_id;
+      } else {
+        // For testing: use first user or create a default test user
+        const firstUser = await User.findOne();
+        userId = firstUser ? firstUser._id : null;
+      }
+
+      if (userId) {
+        const newMessage = new Message({
+          user_id: userId,
+          platform_name: "Telegram",
+          sender_name: messageData.senderName,
+          content: messageData.text,
+          message_type: messageData.type,
+          timestamp: messageData.timestamp
+        });
+        await newMessage.save();
+        console.log('Telegram message saved:', newMessage);
+      }
     }
     res.sendStatus(200);
   } catch (err) {
-    console.error(err);
+    console.error('Telegram webhook error:', err);
     res.sendStatus(500);
   }
 });
@@ -277,21 +305,29 @@ app.get("/webhook/facebook", async (req, res) => {
 // Facebook Webhook Handler
 app.post("/webhook/facebook", async (req, res) => {
   try {
+    console.log('Facebook webhook received:', JSON.stringify(req.body, null, 2));
+
     const messageData = parseFacebookWebhook(req.body);
     if (messageData) {
-      const newMessage = new Message({
-        user_id: req.body.userId || null,
-        platform_name: "Facebook",
-        sender_name: messageData.senderId,
-        content: messageData.text,
-        message_type: messageData.type,
-        timestamp: messageData.timestamp
-      });
-      await newMessage.save();
+      const firstUser = await User.findOne();
+      const userId = firstUser ? firstUser._id : null;
+
+      if (userId) {
+        const newMessage = new Message({
+          user_id: userId,
+          platform_name: "Facebook",
+          sender_name: messageData.senderId,
+          content: messageData.text,
+          message_type: messageData.type,
+          timestamp: messageData.timestamp
+        });
+        await newMessage.save();
+        console.log('Facebook message saved:', newMessage);
+      }
     }
     res.sendStatus(200);
   } catch (err) {
-    console.error(err);
+    console.error('Facebook webhook error:', err);
     res.sendStatus(500);
   }
 });
@@ -313,26 +349,34 @@ app.get("/webhook/instagram", async (req, res) => {
 // Instagram Webhook Handler
 app.post("/webhook/instagram", async (req, res) => {
   try {
+    console.log('Instagram webhook received:', JSON.stringify(req.body, null, 2));
+
     const messageData = parseInstagramWebhook(req.body);
     if (messageData) {
-      const newMessage = new Message({
-        user_id: req.body.userId || null,
-        platform_name: "Instagram",
-        sender_name: messageData.senderId,
-        content: messageData.text,
-        message_type: messageData.type,
-        timestamp: messageData.timestamp
-      });
-      await newMessage.save();
+      const firstUser = await User.findOne();
+      const userId = firstUser ? firstUser._id : null;
+
+      if (userId) {
+        const newMessage = new Message({
+          user_id: userId,
+          platform_name: "Instagram",
+          sender_name: messageData.senderId,
+          content: messageData.text,
+          message_type: messageData.type,
+          timestamp: messageData.timestamp
+        });
+        await newMessage.save();
+        console.log('Instagram message saved:', newMessage);
+      }
     }
     res.sendStatus(200);
   } catch (err) {
-    console.error(err);
+    console.error('Instagram webhook error:', err);
     res.sendStatus(500);
   }
 });
 
-// Get Messages
+// Get All Messages for User
 app.get("/api/messages/:userId", async (req, res) => {
   try {
     const messages = await Message.find({ user_id: req.params.userId })
@@ -342,6 +386,23 @@ app.get("/api/messages/:userId", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send("Error fetching messages");
+  }
+});
+
+// Get Messages by Platform
+app.get("/api/messages/:userId/:platform", async (req, res) => {
+  try {
+    const { userId, platform } = req.params;
+    const messages = await Message.find({
+      user_id: userId,
+      platform_name: new RegExp(platform, 'i')
+    })
+      .sort({ timestamp: 1 })
+      .limit(100);
+    res.json(messages);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error fetching messages" });
   }
 });
 

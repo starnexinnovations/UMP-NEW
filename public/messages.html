@@ -254,6 +254,9 @@ const userId = localStorage.getItem('userId') || null;
 const selected = JSON.parse(localStorage.getItem('selectedPlatforms') || '[]');
 const wrapper = document.getElementById('platforms-wrapper');
 
+// Local message cache for optimistic updates
+const localMessageCache = {};
+
 if(!userId) {
   wrapper.innerHTML = '<div class="empty-state"><h3>Please login first</h3><a href="login.html">Go to Login</a></div>';
 }
@@ -305,21 +308,51 @@ function formatTime(timestamp) {
   return date.toLocaleDateString();
 }
 
-async function loadMessages(platform) {
+async function loadMessages(platform, skipCache = false) {
   try {
     const url = `http://localhost:5000/api/messages-live/${platform}?userId=${userId}`;
     const response = await fetch(url);
     const data = await response.json();
 
-    return data.messages || [];
+    const serverMessages = data.messages || [];
+
+    // Initialize cache for this platform if not exists
+    if (!localMessageCache[platform]) {
+      localMessageCache[platform] = [];
+    }
+
+    // Merge server messages with local cache
+    // Keep local pending messages that haven't synced yet
+    const localPending = localMessageCache[platform].filter(local => {
+      // Check if this local message exists in server response
+      const existsOnServer = serverMessages.some(server =>
+        server.text === local.text &&
+        Math.abs(new Date(server.timestamp) - new Date(local.timestamp)) < 5000
+      );
+      return !existsOnServer && local.isPending;
+    });
+
+    // Combine: server messages + pending local messages
+    const allMessages = [...serverMessages, ...localPending].sort(
+      (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+    );
+
+    // Update cache with merged result
+    localMessageCache[platform] = allMessages;
+
+    return allMessages;
   } catch (err) {
     console.error('Error loading messages:', err);
-    return [];
+    // Return cached messages if server fails
+    return localMessageCache[platform] || [];
   }
 }
 
 function renderMessages(platform, messages, container) {
   const chatContainer = container.querySelector('.chat-container');
+  const previousScrollHeight = chatContainer.scrollHeight;
+  const wasScrolledToBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 50;
+
   chatContainer.innerHTML = '';
 
   if (messages.length === 0) {
@@ -330,13 +363,16 @@ function renderMessages(platform, messages, container) {
   messages.forEach(msg => {
     const bubble = document.createElement('div');
 
-    // Use the unified format from server
     const senderName = msg.senderName || 'Unknown';
     const messageText = msg.text || '';
     const timestamp = msg.timestamp;
     const isSent = msg.isSent || senderName === 'You';
+    const isPending = msg.isPending || false;
 
     bubble.className = `message-bubble ${isSent ? 'sent' : 'received'}`;
+    if (isPending) {
+      bubble.style.opacity = '0.6';
+    }
 
     const content = document.createElement('div');
     content.className = 'message-content';
@@ -355,14 +391,17 @@ function renderMessages(platform, messages, container) {
 
     const time = document.createElement('div');
     time.className = 'message-time';
-    time.textContent = formatTime(timestamp);
+    time.textContent = isPending ? 'Sending...' : formatTime(timestamp);
     content.appendChild(time);
 
     bubble.appendChild(content);
     chatContainer.appendChild(bubble);
   });
 
-  chatContainer.scrollTop = chatContainer.scrollHeight;
+  // Maintain scroll position or scroll to bottom if user was at bottom
+  if (wasScrolledToBottom) {
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
 }
 
 async function sendMessage(platform, message, recipientInfo, container) {
@@ -380,6 +419,25 @@ async function sendMessage(platform, message, recipientInfo, container) {
     instagram: { recipientId: recipientInfo.recipientId, message, userId }
   };
 
+  // Create optimistic message
+  const optimisticMessage = {
+    senderName: 'You',
+    text: message,
+    timestamp: new Date().toISOString(),
+    isSent: true,
+    isPending: true,
+    localId: `local_${Date.now()}`
+  };
+
+  // Add to local cache immediately
+  if (!localMessageCache[platform]) {
+    localMessageCache[platform] = [];
+  }
+  localMessageCache[platform].push(optimisticMessage);
+
+  // Render immediately with optimistic message
+  renderMessages(platform, localMessageCache[platform], container);
+
   try {
     const response = await fetch(`http://localhost:5000${apiEndpoints[platform]}`, {
       method: 'POST',
@@ -390,21 +448,37 @@ async function sendMessage(platform, message, recipientInfo, container) {
     const data = await response.json();
 
     if (data.success) {
-      showNotification(`Message sent via ${platform}!`, 'success');
+      console.log(`Message sent successfully via ${platform}`);
 
-      // Reload messages to show the sent message
+      // Remove pending flag from optimistic message
+      const msgIndex = localMessageCache[platform].findIndex(m => m.localId === optimisticMessage.localId);
+      if (msgIndex !== -1) {
+        localMessageCache[platform][msgIndex].isPending = false;
+        renderMessages(platform, localMessageCache[platform], container);
+      }
+
+      // Fetch from server to confirm sync (background task)
       setTimeout(async () => {
         const messages = await loadMessages(platform);
         renderMessages(platform, messages, container);
-      }, 500);
+      }, 1000);
 
       return true;
     } else {
+      // Remove failed message from cache
+      localMessageCache[platform] = localMessageCache[platform].filter(m => m.localId !== optimisticMessage.localId);
+      renderMessages(platform, localMessageCache[platform], container);
+
       showNotification(`Failed: ${data.error}`, 'error');
       return false;
     }
   } catch (err) {
     console.error('Send error:', err);
+
+    // Remove failed message from cache
+    localMessageCache[platform] = localMessageCache[platform].filter(m => m.localId !== optimisticMessage.localId);
+    renderMessages(platform, localMessageCache[platform], container);
+
     showNotification(`Error: ${err.message}`, 'error');
     return false;
   }
@@ -472,26 +546,32 @@ async function createPlatformSection(platform) {
     refreshBtn.textContent = '↻ Loading...';
     refreshBtn.disabled = true;
 
-    const messages = await loadMessages(platform);
+    // Force reload from server
+    const messages = await loadMessages(platform, true);
     renderMessages(platform, messages, section);
 
     refreshBtn.textContent = '↻ Refresh';
     refreshBtn.disabled = false;
     showNotification('Messages refreshed!', 'success');
   });
+
+  return section;
 }
 
 // Initialize platforms
 if (userId && selected.length > 0) {
-  selected.forEach(platform => {
-    createPlatformSection(platform);
-  });
+  (async () => {
+    for (const platform of selected) {
+      await createPlatformSection(platform);
+    }
+  })();
 
-  // Auto-refresh every 10 seconds
+  // Auto-refresh every 10 seconds (background sync)
   setInterval(async () => {
     for (const platform of selected) {
       const section = document.getElementById(`platform-${platform}`);
       if (section) {
+        // Load messages but don't disrupt pending sends
         const messages = await loadMessages(platform);
         renderMessages(platform, messages, section);
       }

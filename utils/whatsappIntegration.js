@@ -90,9 +90,42 @@ async function verifyWhatsAppWebhook(mode, token, challenge) {
   return null;
 }
 
+async function getWhatsAppMessages() {
+  try {
+    const response = await axios.get(
+      `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`
+        }
+      }
+    );
+
+    const messages = [];
+    if (response.data && response.data.data) {
+      for (const msg of response.data.data) {
+        messages.push({
+          messageId: msg.id,
+          from: msg.from,
+          timestamp: new Date(parseInt(msg.timestamp) * 1000),
+          type: msg.type,
+          text: msg.text?.body || "",
+          status: msg.status
+        });
+      }
+    }
+
+    return messages;
+  } catch (error) {
+    console.error("WhatsApp get messages error:", error.response?.data || error.message);
+    return [];
+  }
+}
+
 module.exports = {
   sendWhatsAppMessage,
   sendWhatsAppMedia,
   parseWhatsAppWebhook,
-  verifyWhatsAppWebhook
+  verifyWhatsAppWebhook,
+  getWhatsAppMessages
 };

@@ -95,10 +95,44 @@ async function getFacebookUserProfile(userId) {
   }
 }
 
+async function getFacebookMessages() {
+  try {
+    const response = await axios.get(`${FACEBOOK_API_URL}/me/conversations`, {
+      params: {
+        fields: "messages{id,from,to,message,created_time}",
+        access_token: process.env.FACEBOOK_PAGE_ACCESS_TOKEN
+      }
+    });
+
+    const messages = [];
+    if (response.data && response.data.data) {
+      for (const conversation of response.data.data) {
+        if (conversation.messages && conversation.messages.data) {
+          for (const msg of conversation.messages.data) {
+            messages.push({
+              messageId: msg.id,
+              senderId: msg.from.id,
+              timestamp: new Date(msg.created_time),
+              text: msg.message || "",
+              type: "text"
+            });
+          }
+        }
+      }
+    }
+
+    return messages;
+  } catch (error) {
+    console.error("Facebook get messages error:", error.response?.data || error.message);
+    return [];
+  }
+}
+
 module.exports = {
   sendFacebookMessage,
   sendFacebookAttachment,
   parseFacebookWebhook,
   verifyFacebookWebhook,
-  getFacebookUserProfile
+  getFacebookUserProfile,
+  getFacebookMessages
 };

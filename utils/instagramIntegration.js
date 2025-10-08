@@ -95,10 +95,45 @@ async function getInstagramUserProfile(userId) {
   }
 }
 
+async function getInstagramMessages() {
+  try {
+    const response = await axios.get(`${INSTAGRAM_API_URL}/me/conversations`, {
+      params: {
+        fields: "messages{id,from,to,message,created_time}",
+        access_token: process.env.INSTAGRAM_ACCESS_TOKEN,
+        platform: "instagram"
+      }
+    });
+
+    const messages = [];
+    if (response.data && response.data.data) {
+      for (const conversation of response.data.data) {
+        if (conversation.messages && conversation.messages.data) {
+          for (const msg of conversation.messages.data) {
+            messages.push({
+              messageId: msg.id,
+              senderId: msg.from.id,
+              timestamp: new Date(msg.created_time),
+              text: msg.message || "",
+              type: "text"
+            });
+          }
+        }
+      }
+    }
+
+    return messages;
+  } catch (error) {
+    console.error("Instagram get messages error:", error.response?.data || error.message);
+    return [];
+  }
+}
+
 module.exports = {
   sendInstagramMessage,
   sendInstagramMedia,
   parseInstagramWebhook,
   verifyInstagramWebhook,
-  getInstagramUserProfile
+  getInstagramUserProfile,
+  getInstagramMessages
 };

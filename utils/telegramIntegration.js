@@ -96,11 +96,55 @@ async function getTelegramFile(fileId) {
   }
 }
 
+async function getTelegramMessages(offset = 0) {
+  try {
+    const response = await axios.get(`${TELEGRAM_API_URL}/getUpdates`, {
+      params: {
+        offset: offset,
+        timeout: 0
+      }
+    });
+
+    const updates = response.data.result || [];
+    const messages = [];
+
+    for (const update of updates) {
+      if (update.message) {
+        const message = update.message;
+        messages.push({
+          messageId: message.message_id,
+          chatId: message.chat.id,
+          from: message.from.id,
+          senderName: message.from.first_name + (message.from.last_name ? ` ${message.from.last_name}` : ""),
+          username: message.from.username || "",
+          timestamp: new Date(message.date * 1000),
+          type: message.photo ? "image" : message.video ? "video" : message.audio ? "audio" : "text",
+          text: message.text || message.caption || "",
+          mediaUrl: message.photo?.[message.photo.length - 1]?.file_id ||
+                    message.video?.file_id ||
+                    message.audio?.file_id ||
+                    null,
+          updateId: update.update_id
+        });
+      }
+    }
+
+    return {
+      messages,
+      lastUpdateId: updates.length > 0 ? updates[updates.length - 1].update_id : offset
+    };
+  } catch (error) {
+    console.error("Telegram get messages error:", error.response?.data || error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   sendTelegramMessage,
   sendTelegramPhoto,
   sendTelegramVideo,
   setTelegramWebhook,
   parseTelegramWebhook,
-  getTelegramFile
+  getTelegramFile,
+  getTelegramMessages
 };

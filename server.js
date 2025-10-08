@@ -10,10 +10,10 @@ const User = require("./models/User");
 const Message = require("./models/Message");
 const Platform = require("./models/Platform");
 const { sendVerificationEmail, sendOTP } = require("./utils/emailSender");
-const { sendWhatsAppMessage, parseWhatsAppWebhook, verifyWhatsAppWebhook } = require("./utils/whatsappIntegration");
-const { sendTelegramMessage, parseTelegramWebhook } = require("./utils/telegramIntegration");
-const { sendFacebookMessage, parseFacebookWebhook, verifyFacebookWebhook } = require("./utils/facebookIntegration");
-const { sendInstagramMessage, parseInstagramWebhook, verifyInstagramWebhook } = require("./utils/instagramIntegration");
+const { sendWhatsAppMessage, parseWhatsAppWebhook, verifyWhatsAppWebhook, getWhatsAppMessages } = require("./utils/whatsappIntegration");
+const { sendTelegramMessage, parseTelegramWebhook, getTelegramMessages } = require("./utils/telegramIntegration");
+const { sendFacebookMessage, parseFacebookWebhook, verifyFacebookWebhook, getFacebookMessages } = require("./utils/facebookIntegration");
+const { sendInstagramMessage, parseInstagramWebhook, verifyInstagramWebhook, getInstagramMessages } = require("./utils/instagramIntegration");
 
 const app = express();
 const PORT = 5000;
@@ -403,6 +403,51 @@ app.get("/api/messages/:userId/:platform", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Error fetching messages" });
+  }
+});
+
+// Get Messages from API (Telegram)
+app.get("/api/messages-live/telegram", async (req, res) => {
+  try {
+    const offset = req.query.offset || 0;
+    const result = await getTelegramMessages(offset);
+    res.json(result);
+  } catch (err) {
+    console.error("Error fetching Telegram messages:", err);
+    res.status(500).json({ error: "Error fetching Telegram messages" });
+  }
+});
+
+// Get Messages from API (WhatsApp)
+app.get("/api/messages-live/whatsapp", async (req, res) => {
+  try {
+    const messages = await getWhatsAppMessages();
+    res.json({ messages });
+  } catch (err) {
+    console.error("Error fetching WhatsApp messages:", err);
+    res.status(500).json({ error: "Error fetching WhatsApp messages" });
+  }
+});
+
+// Get Messages from API (Facebook)
+app.get("/api/messages-live/facebook", async (req, res) => {
+  try {
+    const messages = await getFacebookMessages();
+    res.json({ messages });
+  } catch (err) {
+    console.error("Error fetching Facebook messages:", err);
+    res.status(500).json({ error: "Error fetching Facebook messages" });
+  }
+});
+
+// Get Messages from API (Instagram)
+app.get("/api/messages-live/instagram", async (req, res) => {
+  try {
+    const messages = await getInstagramMessages();
+    res.json({ messages });
+  } catch (err) {
+    console.error("Error fetching Instagram messages:", err);
+    res.status(500).json({ error: "Error fetching Instagram messages" });
   }
 });
 

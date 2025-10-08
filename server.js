@@ -23,8 +23,8 @@ app.use(bodyParser.json());
 app.use(cors());
 app.use(express.static(path.join(__dirname, "public")));
 
-// MongoDB connect
-mongoose.connect("mongodb://127.0.0.1:27017/ump_project", {
+// MongoDB connect mongodb://localhost:27017/
+mongoose.connect("mongodb://localhost:27017/ump_project", {
   useNewUrlParser: true,
   useUnifiedTopology: true
 })

@@ -62,9 +62,12 @@ if(loginForm){
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({email,password})
       });
-      const msg = await res.text();
-      showNotification(msg, msg==="Login Successful"?"success":"error");
-      if(msg==="Login Successful"){
+      debugger;
+
+      const data = await res.json();
+     
+      showNotification(data.message, data.message==="Login Successful"?"success":"error");
+      if(data.message==="Login Successful"){
         loginForm.reset();
         setTimeout(()=>window.location.href="dashboard.html",1500);
       }

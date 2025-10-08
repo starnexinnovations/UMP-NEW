@@ -227,16 +227,27 @@ app.post("/webhook/whatsapp", async (req, res) => {
       const userId = firstUser ? firstUser._id : null;
 
       if (userId) {
-        const newMessage = new Message({
+        // Check if message already exists to avoid duplicates
+        const existingMessage = await Message.findOne({
           user_id: userId,
           platform_name: "WhatsApp",
           sender_name: messageData.senderName,
           content: messageData.text,
-          message_type: messageData.type,
           timestamp: messageData.timestamp
         });
-        await newMessage.save();
-        console.log('WhatsApp message saved:', newMessage);
+
+        if (!existingMessage) {
+          const newMessage = new Message({
+            user_id: userId,
+            platform_name: "WhatsApp",
+            sender_name: messageData.senderName,
+            content: messageData.text,
+            message_type: messageData.type,
+            timestamp: messageData.timestamp
+          });
+          await newMessage.save();
+          console.log('WhatsApp message saved:', newMessage);
+        }
       }
     }
     res.sendStatus(200);
@@ -253,32 +264,32 @@ app.post("/webhook/telegram", async (req, res) => {
 
     const messageData = parseTelegramWebhook(req.body);
     if (messageData) {
-      // Try to find user by checking Platform collection for matching chat
-      let userId = null;
-      const platform = await Platform.findOne({
-        platform_name: "Telegram",
-        access_token: { $regex: messageData.chatId, $options: 'i' }
-      });
-
-      if (platform) {
-        userId = platform.user_id;
-      } else {
-        // For testing: use first user or create a default test user
-        const firstUser = await User.findOne();
-        userId = firstUser ? firstUser._id : null;
-      }
+      // Save to database - this will be merged with sent messages
+      const firstUser = await User.findOne();
+      const userId = firstUser ? firstUser._id : null;
 
       if (userId) {
-        const newMessage = new Message({
+        // Check if message already exists to avoid duplicates
+        const existingMessage = await Message.findOne({
           user_id: userId,
           platform_name: "Telegram",
           sender_name: messageData.senderName,
           content: messageData.text,
-          message_type: messageData.type,
           timestamp: messageData.timestamp
         });
-        await newMessage.save();
-        console.log('Telegram message saved:', newMessage);
+
+        if (!existingMessage) {
+          const newMessage = new Message({
+            user_id: userId,
+            platform_name: "Telegram",
+            sender_name: messageData.senderName,
+            content: messageData.text,
+            message_type: messageData.type,
+            timestamp: messageData.timestamp
+          });
+          await newMessage.save();
+          console.log('Telegram message saved:', newMessage);
+        }
       }
     }
     res.sendStatus(200);
@@ -313,16 +324,27 @@ app.post("/webhook/facebook", async (req, res) => {
       const userId = firstUser ? firstUser._id : null;
 
       if (userId) {
-        const newMessage = new Message({
+        // Check if message already exists to avoid duplicates
+        const existingMessage = await Message.findOne({
           user_id: userId,
           platform_name: "Facebook",
           sender_name: messageData.senderId,
           content: messageData.text,
-          message_type: messageData.type,
           timestamp: messageData.timestamp
         });
-        await newMessage.save();
-        console.log('Facebook message saved:', newMessage);
+
+        if (!existingMessage) {
+          const newMessage = new Message({
+            user_id: userId,
+            platform_name: "Facebook",
+            sender_name: messageData.senderId,
+            content: messageData.text,
+            message_type: messageData.type,
+            timestamp: messageData.timestamp
+          });
+          await newMessage.save();
+          console.log('Facebook message saved:', newMessage);
+        }
       }
     }
     res.sendStatus(200);
@@ -357,16 +379,27 @@ app.post("/webhook/instagram", async (req, res) => {
       const userId = firstUser ? firstUser._id : null;
 
       if (userId) {
-        const newMessage = new Message({
+        // Check if message already exists to avoid duplicates
+        const existingMessage = await Message.findOne({
           user_id: userId,
           platform_name: "Instagram",
           sender_name: messageData.senderId,
           content: messageData.text,
-          message_type: messageData.type,
           timestamp: messageData.timestamp
         });
-        await newMessage.save();
-        console.log('Instagram message saved:', newMessage);
+
+        if (!existingMessage) {
+          const newMessage = new Message({
+            user_id: userId,
+            platform_name: "Instagram",
+            sender_name: messageData.senderId,
+            content: messageData.text,
+            message_type: messageData.type,
+            timestamp: messageData.timestamp
+          });
+          await newMessage.save();
+          console.log('Instagram message saved:', newMessage);
+        }
       }
     }
     res.sendStatus(200);
@@ -406,45 +439,190 @@ app.get("/api/messages/:userId/:platform", async (req, res) => {
   }
 });
 
-// Get Messages from API (Telegram)
+// Get Messages from API (Telegram) - Combined with DB
 app.get("/api/messages-live/telegram", async (req, res) => {
   try {
+    const userId = req.query.userId;
     const offset = req.query.offset || 0;
+
+    // Get received messages from Telegram API
     const result = await getTelegramMessages(offset);
-    res.json(result);
+    const receivedMessages = result.messages.map(msg => ({
+      senderName: msg.senderName,
+      text: msg.text,
+      timestamp: msg.timestamp,
+      type: msg.type,
+      messageId: msg.messageId,
+      chatId: msg.chatId,
+      isSent: false
+    }));
+
+    // Get sent messages from database
+    let sentMessages = [];
+    if (userId) {
+      const dbMessages = await Message.find({
+        user_id: userId,
+        platform_name: "Telegram",
+        sender_name: "You"
+      }).sort({ timestamp: -1 }).limit(100);
+
+      sentMessages = dbMessages.map(msg => ({
+        senderName: "You",
+        text: msg.content,
+        timestamp: msg.timestamp,
+        type: msg.message_type,
+        messageId: msg._id,
+        isSent: true
+      }));
+    }
+
+    // Combine and sort by timestamp
+    const allMessages = [...receivedMessages, ...sentMessages].sort(
+      (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+    );
+
+    res.json({ messages: allMessages });
   } catch (err) {
     console.error("Error fetching Telegram messages:", err);
     res.status(500).json({ error: "Error fetching Telegram messages" });
   }
 });
 
-// Get Messages from API (WhatsApp)
+// Get Messages from API (WhatsApp) - Combined with DB
 app.get("/api/messages-live/whatsapp", async (req, res) => {
   try {
-    const messages = await getWhatsAppMessages();
-    res.json({ messages });
+    const userId = req.query.userId;
+
+    // Get received messages from WhatsApp API
+    const receivedMessages = await getWhatsAppMessages();
+    const formattedReceived = receivedMessages.map(msg => ({
+      senderName: msg.from || "Unknown",
+      text: msg.text,
+      timestamp: msg.timestamp,
+      type: msg.type,
+      messageId: msg.messageId,
+      isSent: false
+    }));
+
+    // Get sent messages from database
+    let sentMessages = [];
+    if (userId) {
+      const dbMessages = await Message.find({
+        user_id: userId,
+        platform_name: "WhatsApp",
+        sender_name: "You"
+      }).sort({ timestamp: -1 }).limit(100);
+
+      sentMessages = dbMessages.map(msg => ({
+        senderName: "You",
+        text: msg.content,
+        timestamp: msg.timestamp,
+        type: msg.message_type,
+        messageId: msg._id,
+        isSent: true
+      }));
+    }
+
+    // Combine and sort by timestamp
+    const allMessages = [...formattedReceived, ...sentMessages].sort(
+      (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+    );
+
+    res.json({ messages: allMessages });
   } catch (err) {
     console.error("Error fetching WhatsApp messages:", err);
     res.status(500).json({ error: "Error fetching WhatsApp messages" });
   }
 });
 
-// Get Messages from API (Facebook)
+// Get Messages from API (Facebook) - Combined with DB
 app.get("/api/messages-live/facebook", async (req, res) => {
   try {
-    const messages = await getFacebookMessages();
-    res.json({ messages });
+    const userId = req.query.userId;
+
+    // Get received messages from Facebook API
+    const receivedMessages = await getFacebookMessages();
+    const formattedReceived = receivedMessages.map(msg => ({
+      senderName: msg.senderId || "Unknown",
+      text: msg.text,
+      timestamp: msg.timestamp,
+      type: msg.type,
+      messageId: msg.messageId,
+      isSent: false
+    }));
+
+    // Get sent messages from database
+    let sentMessages = [];
+    if (userId) {
+      const dbMessages = await Message.find({
+        user_id: userId,
+        platform_name: "Facebook",
+        sender_name: "You"
+      }).sort({ timestamp: -1 }).limit(100);
+
+      sentMessages = dbMessages.map(msg => ({
+        senderName: "You",
+        text: msg.content,
+        timestamp: msg.timestamp,
+        type: msg.message_type,
+        messageId: msg._id,
+        isSent: true
+      }));
+    }
+
+    // Combine and sort by timestamp
+    const allMessages = [...formattedReceived, ...sentMessages].sort(
+      (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+    );
+
+    res.json({ messages: allMessages });
   } catch (err) {
     console.error("Error fetching Facebook messages:", err);
     res.status(500).json({ error: "Error fetching Facebook messages" });
   }
 });
 
-// Get Messages from API (Instagram)
+// Get Messages from API (Instagram) - Combined with DB
 app.get("/api/messages-live/instagram", async (req, res) => {
   try {
-    const messages = await getInstagramMessages();
-    res.json({ messages });
+    const userId = req.query.userId;
+
+    // Get received messages from Instagram API
+    const receivedMessages = await getInstagramMessages();
+    const formattedReceived = receivedMessages.map(msg => ({
+      senderName: msg.senderId || "Unknown",
+      text: msg.text,
+      timestamp: msg.timestamp,
+      type: msg.type,
+      messageId: msg.messageId,
+      isSent: false
+    }));
+
+    // Get sent messages from database
+    let sentMessages = [];
+    if (userId) {
+      const dbMessages = await Message.find({
+        user_id: userId,
+        platform_name: "Instagram",
+        sender_name: "You"
+      }).sort({ timestamp: -1 }).limit(100);
+
+      sentMessages = dbMessages.map(msg => ({
+        senderName: "You",
+        text: msg.content,
+        timestamp: msg.timestamp,
+        type: msg.message_type,
+        messageId: msg._id,
+        isSent: true
+      }));
+    }
+
+    // Combine and sort by timestamp
+    const allMessages = [...formattedReceived, ...sentMessages].sort(
+      (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+    );
+
+    res.json({ messages: allMessages });
   } catch (err) {
     console.error("Error fetching Instagram messages:", err);
     res.status(500).json({ error: "Error fetching Instagram messages" });

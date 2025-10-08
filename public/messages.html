@@ -307,18 +307,11 @@ function formatTime(timestamp) {
 
 async function loadMessages(platform) {
   try {
-    const response = await fetch(`http://localhost:5000/api/messages-live/${platform}`);
+    const url = `http://localhost:5000/api/messages-live/${platform}?userId=${userId}`;
+    const response = await fetch(url);
     const data = await response.json();
 
-    // Handle different response formats for different platforms
-    let messages = [];
-    if (platform === 'telegram') {
-      messages = data.messages || [];
-    } else {
-      messages = data.messages || [];
-    }
-
-    return messages;
+    return data.messages || [];
   } catch (err) {
     console.error('Error loading messages:', err);
     return [];
@@ -337,30 +330,12 @@ function renderMessages(platform, messages, container) {
   messages.forEach(msg => {
     const bubble = document.createElement('div');
 
-    // Handle different message formats from different platforms
-    let senderName = '';
-    let messageText = '';
-    let timestamp = '';
+    // Use the unified format from server
+    const senderName = msg.senderName || 'Unknown';
+    const messageText = msg.text || '';
+    const timestamp = msg.timestamp;
+    const isSent = msg.isSent || senderName === 'You';
 
-    if (platform === 'telegram') {
-      senderName = msg.senderName || msg.username || 'Unknown';
-      messageText = msg.text || msg.content || '';
-      timestamp = msg.timestamp;
-    } else if (platform === 'whatsapp') {
-      senderName = msg.from || 'Unknown';
-      messageText = msg.text || '';
-      timestamp = msg.timestamp;
-    } else if (platform === 'facebook' || platform === 'instagram') {
-      senderName = msg.senderId || 'Unknown';
-      messageText = msg.text || '';
-      timestamp = msg.timestamp;
-    } else {
-      senderName = msg.sender_name || 'Unknown';
-      messageText = msg.content || msg.text || '';
-      timestamp = msg.timestamp;
-    }
-
-    const isSent = senderName === 'You' || senderName === 'you';
     bubble.className = `message-bubble ${isSent ? 'sent' : 'received'}`;
 
     const content = document.createElement('div');

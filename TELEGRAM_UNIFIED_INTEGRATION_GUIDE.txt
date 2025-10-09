@@ -1,0 +1,403 @@
+================================================================================
+  UNIFIED TELEGRAM MESSAGING INTEGRATION GUIDE
+  Bot API + MTProto (Phone Number) Support
+================================================================================
+
+OVERVIEW
+--------
+This system supports TWO methods of sending Telegram messages:
+1. Bot API - For users who have started a chat with your bot
+2. MTProto (Client API) - For sending messages directly to phone numbers
+
+================================================================================
+PART 1: PREREQUISITES & SETUP
+================================================================================
+
+1.1 TELEGRAM BOT API SETUP
+---------------------------
+Already configured in your .env file:
+- TELEGRAM_BOT_TOKEN=your_bot_token
+
+To get a bot token:
+1. Message @BotFather on Telegram
+2. Send /newbot
+3. Follow instructions to create a bot
+4. Copy the token to your .env file
+
+1.2 TELEGRAM MTPROTO (CLIENT API) SETUP
+---------------------------------------
+Required for phone number messaging:
+
+Step 1: Get API credentials
+- Go to: https://my.telegram.org/auth
+- Log in with your phone number
+- Go to "API Development Tools"
+- Create a new application
+- Copy your api_id and api_hash
+
+Step 2: Add to .env file
+```
+TELEGRAM_API_ID=12345678
+TELEGRAM_API_HASH=your_api_hash_here
+TELEGRAM_ADMIN_PHONE=+919751579617
+TELEGRAM_SESSION_STRING=
+```
+
+Note: Leave TELEGRAM_SESSION_STRING empty initially
+
+Step 3: First-time authentication
+- Run: node server.js
+- The system will prompt you for:
+  1. Phone code (sent to your Telegram)
+  2. 2FA password (if enabled)
+- A session string will be printed in console
+- Copy this string to TELEGRAM_SESSION_STRING in .env
+- Restart server
+
+After this one-time setup, the system will auto-login without prompting.
+
+================================================================================
+PART 2: DATABASE SCHEMA
+================================================================================
+
+2.1 USER MODEL UPDATES
+----------------------
+Added fields to User schema:
+- phone_number: String (optional) - User's Telegram phone number
+- telegram_chat_id: String (optional) - Bot chat ID if user started chat
+
+2.2 MESSAGE MODEL
+-----------------
+Existing Message schema stores all sent/received messages:
+- user_id: Reference to User
+- platform_name: "Telegram"
+- sender_name: "You" for sent messages
+- content: Message text
+- message_type: "text", "image", "video", "audio"
+- timestamp: Date
+
+================================================================================
+PART 3: API ENDPOINTS
+================================================================================
+
+3.1 REGISTER USER WITH PHONE NUMBER
+------------------------------------
+POST /api/register
+
+Request Body:
+{
+  "username": "John Doe",
+  "email": "john@example.com",
+  "password": "securepass123",
+  "phoneNumber": "+918144779725"  // Optional
+}
+
+Response:
+{
+  "message": "Registration successful",
+  "userId": "60d5ec49f1b2c8b1f8e4e1a1"
+}
+
+3.2 UPDATE USER PHONE/CHAT ID
+------------------------------
+PUT /api/user/:userId
+
+Request Body:
+{
+  "phoneNumber": "+918144779725",     // Optional
+  "telegramChatId": "123456789"       // Optional
+}
+
+Response:
+{
+  "message": "User updated successfully",
+  "user": { ...user object }
+}
+
+3.3 GET USER INFO
+-----------------
+GET /api/user/:userId
+
+Response:
+{
+  "username": "John Doe",
+  "email": "john@example.com",
+  "phone_number": "+918144779725",
+  "telegram_chat_id": "123456789",
+  ...
+}
+
+3.4 UNIFIED TELEGRAM SEND MESSAGE
+----------------------------------
+POST /api/sendTelegramMessage
+
+This is the MAIN endpoint for sending Telegram messages.
+
+Request Body:
+{
+  "receiver": {
+    "chatId": "123456789",           // Use if user started chat with bot
+    "phoneNumber": "+918144779725"   // Use if sending to phone number
+  },
+  "message": "Hello from UMP!",
+  "userId": "60d5ec49f1b2c8b1f8e4e1a1"  // Optional
+}
+
+Response (Bot API):
+{
+  "success": true,
+  "method": "bot_api",
+  "data": {
+    "ok": true,
+    "result": { ...telegram response }
+  }
+}
+
+Response (MTProto):
+{
+  "success": true,
+  "method": "mtproto",
+  "data": {
+    "success": true,
+    "messageId": 12345,
+    "date": 1234567890,
+    "phoneNumber": "+918144779725"
+  }
+}
+
+DECISION LOGIC:
+- If receiver.chatId is provided → Send via Bot API
+- Else if receiver.phoneNumber is provided → Send via MTProto
+- Else → Return error
+
+3.5 LEGACY TELEGRAM BOT ENDPOINT
+---------------------------------
+POST /api/send/telegram
+
+Still works for backward compatibility (Bot API only):
+{
+  "chatId": "123456789",
+  "message": "Hello!",
+  "userId": "user_id"
+}
+
+================================================================================
+PART 4: FRONTEND IMPLEMENTATION
+================================================================================
+
+4.1 REGISTRATION FORM (register.html)
+--------------------------------------
+Updated to include phone number field:
+
+<div class="input-group">
+  <label for="phone-number">Phone Number (Optional - for Telegram)</label>
+  <input type="tel" id="phone-number" name="phone-number" placeholder="+919751579617">
+  <small>Include country code (e.g., +91 for India)</small>
+</div>
+
+4.2 MESSAGE SENDING (messages.html)
+------------------------------------
+The system automatically detects and uses the right method:
+
+```javascript
+// User data is loaded on page load
+await loadCurrentUser();  // Loads phone_number and telegram_chat_id
+
+// When sending a message
+const payload = {
+  receiver: {
+    chatId: currentUser?.telegram_chat_id || null,
+    phoneNumber: currentUser?.phone_number || null
+  },
+  message: "Hello!",
+  userId: userId
+};
+
+await fetch('http://localhost:5000/api/sendTelegramMessage', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(payload)
+});
+```
+
+================================================================================
+PART 5: HOW IT WORKS
+================================================================================
+
+5.1 SCENARIO 1: USER WITH TELEGRAM BOT CHAT
+--------------------------------------------
+1. User registers: john@example.com (no phone)
+2. User starts chat with your Telegram bot
+3. Bot receives /start command
+4. Webhook captures chat_id: "123456789"
+5. Update user: PUT /api/user/:userId { "telegramChatId": "123456789" }
+6. Messages sent via Bot API (instant delivery)
+
+5.2 SCENARIO 2: USER WITH PHONE NUMBER
+---------------------------------------
+1. User registers: john@example.com, phone: +918144779725
+2. User HAS NOT started chat with bot
+3. Admin wants to send message to this user
+4. System detects: no chatId, but phoneNumber exists
+5. Message sent via MTProto to +918144779725
+6. User receives message in their Telegram app
+
+5.3 SCENARIO 3: ADMIN SENDS TO ANY NUMBER
+------------------------------------------
+1. Admin wants to send message to +919751579617
+2. Direct API call:
+   POST /api/sendTelegramMessage
+   {
+     "receiver": { "phoneNumber": "+919751579617" },
+     "message": "Hello!"
+   }
+3. Message sent via MTProto
+
+================================================================================
+PART 6: SECURITY & BEST PRACTICES
+================================================================================
+
+6.1 SECURITY CONSIDERATIONS
+----------------------------
+✓ MTProto uses admin account - NEVER expose session string
+✓ Rate limit MTProto sends (max 20-30 per second)
+✓ Only use MTProto for:
+  - Internal notifications
+  - Admin-initiated messages
+  - Verified users
+✓ Bot API is safer for public-facing features
+
+6.2 BEST PRACTICES
+------------------
+1. Always prefer Bot API when user has chatId
+2. Use MTProto only when necessary
+3. Validate phone numbers before sending
+4. Log all send attempts for debugging
+5. Handle Telegram rate limits gracefully
+6. Store session string securely (never commit to git)
+
+6.3 ENVIRONMENT VARIABLES
+-------------------------
+Required in .env:
+
+# Bot API (Required)
+TELEGRAM_BOT_TOKEN=your_bot_token
+
+# MTProto (Required for phone number messaging)
+TELEGRAM_API_ID=12345678
+TELEGRAM_API_HASH=your_api_hash
+TELEGRAM_ADMIN_PHONE=+919751579617
+TELEGRAM_SESSION_STRING=your_session_string_after_first_login
+
+================================================================================
+PART 7: TESTING GUIDE
+================================================================================
+
+7.1 TEST BOT API
+----------------
+1. Start your bot on Telegram
+2. Send /start to your bot
+3. Note the chat_id from webhook logs
+4. Update user with chatId
+5. Send message via frontend
+6. Verify delivery in Telegram
+
+7.2 TEST MTPROTO (PHONE NUMBER)
+--------------------------------
+1. Ensure TELEGRAM_SESSION_STRING is set
+2. Register user with phone number: +918144779725
+3. DO NOT start bot chat (important!)
+4. Send message via frontend
+5. Check logs: should say "Sending via MTProto"
+6. Verify message received on phone number's Telegram
+
+7.3 DEBUGGING
+-------------
+Check console logs:
+- "Sending via Bot API to chatId: XXX"
+- "Sending via MTProto to phone: +91XXX"
+- "Unified Telegram send request: {...}"
+
+Common errors:
+- "Either chatId or phoneNumber must be provided" → Check payload
+- "Telegram Client not initialized" → Check session string
+- "Invalid phone number" → Check format (+countrycode)
+
+================================================================================
+PART 8: FILE STRUCTURE
+================================================================================
+
+Modified/Created Files:
+-----------------------
+/models/User.js                          → Added phone_number, telegram_chat_id
+/utils/telegramIntegration.js           → Added sendUnifiedTelegramMessage
+/utils/telegramClientService.js         → NEW - MTProto client wrapper
+/server.js                               → Added /api/sendTelegramMessage endpoint
+/public/register.html                    → Added phone number input
+/public/script.js                        → Updated registration logic
+/public/messages.html                    → Updated to use unified endpoint
+package.json                             → Added telegram@2.22.2, input@1.0.1
+
+================================================================================
+PART 9: DEPLOYMENT CHECKLIST
+================================================================================
+
+□ Install dependencies: npm install
+□ Set up .env with all Telegram credentials
+□ Run first-time MTProto authentication
+□ Copy session string to .env
+□ Test Bot API with real bot chat
+□ Test MTProto with real phone number
+□ Set up webhook for Telegram bot (if using webhooks)
+□ Configure rate limiting for production
+□ Monitor logs for errors
+□ Set up error alerts
+
+================================================================================
+PART 10: FREQUENTLY ASKED QUESTIONS
+================================================================================
+
+Q: Can I send to phone numbers without MTProto?
+A: No, Bot API only works with users who started a chat with your bot.
+
+Q: Is MTProto safe to use?
+A: Yes, but it uses your personal Telegram account. Keep session string secure.
+
+Q: What if user has both chatId and phone?
+A: System prefers chatId (Bot API) for better reliability.
+
+Q: Can I send to any phone number?
+A: Yes, but the number must have a Telegram account.
+
+Q: How to handle rate limits?
+A: Implement queue system or add delays between sends.
+
+Q: Can I use this for bulk messaging?
+A: Use carefully - Telegram has strict anti-spam policies.
+
+Q: What if session expires?
+A: Re-run authentication process and update session string.
+
+Q: Can I use multiple admin accounts?
+A: Yes, create multiple TelegramClient instances with different sessions.
+
+================================================================================
+SUPPORT & TROUBLESHOOTING
+================================================================================
+
+For issues:
+1. Check server logs
+2. Verify .env configuration
+3. Test with curl/Postman
+4. Check Telegram API status
+5. Review authentication flow
+
+Common Solutions:
+- Clear old sessions if auth fails
+- Regenerate session string
+- Check phone number format
+- Verify API credentials
+
+================================================================================
+END OF GUIDE
+================================================================================

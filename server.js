@@ -11,7 +11,7 @@ const Message = require("./models/Message");
 const Platform = require("./models/Platform");
 const { sendVerificationEmail, sendOTP } = require("./utils/emailSender");
 const { sendWhatsAppMessage, parseWhatsAppWebhook, verifyWhatsAppWebhook, getWhatsAppMessages } = require("./utils/whatsappIntegration");
-const { sendTelegramMessage, parseTelegramWebhook, getTelegramMessages } = require("./utils/telegramIntegration");
+const { sendTelegramMessage, sendUnifiedTelegramMessage, parseTelegramWebhook, getTelegramMessages } = require("./utils/telegramIntegration");
 const { sendFacebookMessage, parseFacebookWebhook, verifyFacebookWebhook, getFacebookMessages } = require("./utils/facebookIntegration");
 const { sendInstagramMessage, parseInstagramWebhook, verifyInstagramWebhook, getInstagramMessages } = require("./utils/instagramIntegration");
 
@@ -741,6 +741,109 @@ app.post("/api/send/instagram", async (req, res) => {
   } catch (err) {
     console.error("Instagram send error:", err);
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post("/api/sendTelegramMessage", async (req, res) => {
+  try {
+    const { receiver, message, userId } = req.body;
+
+    if (!receiver || !message) {
+      return res.status(400).json({
+        success: false,
+        error: "receiver and message are required"
+      });
+    }
+
+    if (!receiver.chatId && !receiver.phoneNumber) {
+      return res.status(400).json({
+        success: false,
+        error: "Either chatId or phoneNumber must be provided in receiver object"
+      });
+    }
+
+    console.log("Unified Telegram send request:", { receiver, message, userId });
+
+    const result = await sendUnifiedTelegramMessage(receiver, message);
+
+    if (userId) {
+      const newMessage = new Message({
+        user_id: userId,
+        platform_name: "Telegram",
+        sender_name: "You",
+        content: message,
+        message_type: "text",
+        timestamp: new Date()
+      });
+      await newMessage.save();
+    }
+
+    res.json({
+      success: true,
+      method: receiver.chatId ? "bot_api" : "mtproto",
+      data: result
+    });
+  } catch (err) {
+    console.error("Unified Telegram send error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post("/api/register", async (req, res) => {
+  try {
+    const { username, email, password, phoneNumber } = req.body;
+    const existing = await User.findOne({ email });
+    if (existing) return res.status(400).json({ error: "Email already registered" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = new User({
+      username,
+      email,
+      password: hashedPassword,
+      phone_number: phoneNumber || null,
+      email_verified: false
+    });
+    await newUser.save();
+
+    res.json({
+      message: "Registration successful",
+      userId: newUser._id
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error registering user" });
+  }
+});
+
+app.get("/api/user/:userId", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select("-password");
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    res.json(user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error fetching user" });
+  }
+});
+
+app.put("/api/user/:userId", async (req, res) => {
+  try {
+    const { phoneNumber, telegramChatId } = req.body;
+    const user = await User.findById(req.params.userId);
+
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    if (phoneNumber) user.phone_number = phoneNumber;
+    if (telegramChatId) user.telegram_chat_id = telegramChatId;
+
+    await user.save();
+
+    res.json({ message: "User updated successfully", user });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error updating user" });
   }
 });
 

@@ -1,4 +1,5 @@
 const axios = require("axios");
+const { sendMessageViaClient, isClientInitialized } = require("./telegramClientService");
 require("dotenv").config();
 
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
@@ -13,6 +14,28 @@ async function sendTelegramMessage(chatId, text) {
     return response.data;
   } catch (error) {
     console.error("Telegram send error:", error.response?.data || error.message);
+    throw error;
+  }
+}
+
+async function sendUnifiedTelegramMessage(receiver, text) {
+  try {
+    if (receiver.chatId) {
+      console.log(`Sending via Bot API to chatId: ${receiver.chatId}`);
+      return await sendTelegramMessage(receiver.chatId, text);
+    } else if (receiver.phoneNumber) {
+      console.log(`Sending via MTProto to phone: ${receiver.phoneNumber}`);
+      const result = await sendMessageViaClient(receiver.phoneNumber, text);
+      return {
+        success: true,
+        method: "mtproto",
+        data: result
+      };
+    } else {
+      throw new Error("Either chatId or phoneNumber must be provided");
+    }
+  } catch (error) {
+    console.error("Unified send error:", error);
     throw error;
   }
 }
@@ -141,6 +164,7 @@ async function getTelegramMessages(offset = 0) {
 
 module.exports = {
   sendTelegramMessage,
+  sendUnifiedTelegramMessage,
   sendTelegramPhoto,
   sendTelegramVideo,
   setTelegramWebhook,

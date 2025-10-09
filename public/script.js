@@ -15,7 +15,6 @@ window.addEventListener("DOMContentLoaded", ()=>{
   if(registerForm) registerForm.reset();
 });
 
-// Register
 const registerForm = document.getElementById("register-form");
 if(registerForm){
   registerForm.addEventListener("submit", async e=>{
@@ -24,6 +23,7 @@ if(registerForm){
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
     const confirmPassword = document.getElementById("confirm-password").value;
+    const phoneNumber = document.getElementById("phone-number")?.value || null;
 
     if(password !== confirmPassword){
       showNotification("Passwords do not match","error");
@@ -31,16 +31,19 @@ if(registerForm){
     }
 
     try{
-      const res = await fetch("http://localhost:5000/register",{
+      const res = await fetch("http://localhost:5000/api/register",{
         method:"POST",
         headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({username,email,password})
+        body:JSON.stringify({username,email,password,phoneNumber})
       });
-      const msg = await res.text();
-      showNotification(msg, msg==="Registration Successful"?"success":"error");
-      if(msg==="Registration Successful"){
+      const data = await res.json();
+
+      if(data.message === "Registration successful"){
+        showNotification("Registration successful! Please verify your email.","success");
         registerForm.reset();
         setTimeout(()=>window.location.href="login.html",1500);
+      } else {
+        showNotification(data.error || "Registration failed","error");
       }
     }catch(err){
       showNotification("Server error","error");

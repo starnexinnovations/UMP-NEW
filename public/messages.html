@@ -261,6 +261,19 @@ if(!userId) {
   wrapper.innerHTML = '<div class="empty-state"><h3>Please login first</h3><a href="login.html">Go to Login</a></div>';
 }
 
+let currentUser = null;
+
+async function loadCurrentUser() {
+  try {
+    const response = await fetch(`http://localhost:5000/api/user/${userId}`);
+    const data = await response.json();
+    currentUser = data;
+    console.log('Current user loaded:', currentUser);
+  } catch (err) {
+    console.error('Error loading user:', err);
+  }
+}
+
 const platformConfig = {
   whatsapp: {
     logo: 'https://img.icons8.com/color/96/000000/whatsapp.png',
@@ -270,7 +283,8 @@ const platformConfig = {
   telegram: {
     logo: 'https://img.icons8.com/color/96/000000/telegram-app.png',
     name: 'Telegram',
-    chatId: '123456789'
+    chatId: null,
+    phoneNumber: null
   },
   facebook: {
     logo: 'https://img.icons8.com/color/96/000000/facebook.png',
@@ -407,14 +421,21 @@ function renderMessages(platform, messages, container) {
 async function sendMessage(platform, message, recipientInfo, container) {
   const apiEndpoints = {
     whatsapp: '/api/send/whatsapp',
-    telegram: '/api/send/telegram',
+    telegram: '/api/sendTelegramMessage',
     facebook: '/api/send/facebook',
     instagram: '/api/send/instagram'
   };
 
   const payloads = {
     whatsapp: { to: recipientInfo.recipientId, message, userId },
-    telegram: { chatId: recipientInfo.chatId, message, userId },
+    telegram: {
+      receiver: {
+        chatId: recipientInfo.chatId || currentUser?.telegram_chat_id || null,
+        phoneNumber: recipientInfo.phoneNumber || currentUser?.phone_number || null
+      },
+      message,
+      userId
+    },
     facebook: { recipientId: recipientInfo.recipientId, message, userId },
     instagram: { recipientId: recipientInfo.recipientId, message, userId }
   };
@@ -558,20 +579,19 @@ async function createPlatformSection(platform) {
   return section;
 }
 
-// Initialize platforms
 if (userId && selected.length > 0) {
   (async () => {
+    await loadCurrentUser();
+
     for (const platform of selected) {
       await createPlatformSection(platform);
     }
   })();
 
-  // Auto-refresh every 10 seconds (background sync)
   setInterval(async () => {
     for (const platform of selected) {
       const section = document.getElementById(`platform-${platform}`);
       if (section) {
-        // Load messages but don't disrupt pending sends
         const messages = await loadMessages(platform);
         renderMessages(platform, messages, section);
       }
